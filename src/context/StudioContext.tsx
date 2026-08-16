@@ -170,12 +170,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsAuthenticated(true);
     saveToStorage(STORAGE_KEYS.AUTH_SESSION, true);
     setInactivityLoggedOut(false);
+    setActiveTab('dashboard');
     return { success: true };
   }, [team]);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     saveToStorage(STORAGE_KEYS.AUTH_SESSION, false);
+    setActiveTab('dashboard');
   }, []);
 
   // 5-Minute Inactivity Auto-Logout Effect
