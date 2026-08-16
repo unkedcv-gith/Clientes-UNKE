@@ -1,0 +1,6 @@
+{
+  "name": "UNKE - Estudio de Diseño & Comunicación",
+  "description": "Dashboard integral para gestión de clientes, proyectos, mantenimientos mensuales, presupuestos en ARS, notas del equipo y presencia en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
