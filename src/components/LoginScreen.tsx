@@ -1,23 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { UnkeLogo } from './UnkeLogo';
-import { Lock, ArrowRight, AlertCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { ParticleBackground } from './ParticleBackground';
+import { Lock, ArrowRight, AlertCircle, ShieldCheck, Eye, EyeOff, UserCheck } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
   const { team, login, inactivityLoggedOut, clearInactivityNotice } = useStudio();
 
-  const [selectedMemberId, setSelectedMemberId] = useState<string>(team[0]?.id || 'member_nacho');
+  // No user selected by default
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedMember = team.find(m => m.id === selectedMemberId) || team[0];
+  const selectedMember = team.find(m => m.id === selectedMemberId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedMemberId) {
+      setError('Por favor seleccioná tu usuario antes de continuar.');
+      return;
+    }
+
     if (!password.trim()) {
       setError('Por favor ingresá tu contraseña.');
+      passwordInputRef.current?.focus();
       return;
     }
 
@@ -38,12 +48,19 @@ export const LoginScreen: React.FC = () => {
     setPassword('');
     setError(null);
     clearInactivityNotice();
+    // Auto focus password input after picking user
+    setTimeout(() => {
+      passwordInputRef.current?.focus();
+    }, 50);
   };
 
   return (
-    <div className="min-h-screen bg-[#141414] text-[#ffffff] flex flex-col items-center justify-center p-4 selection:bg-[#34877c] selection:text-white">
-      {/* Background Subtle Accent */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,135,124,0.06)_0,transparent_70%)] pointer-events-none" />
+    <div className="relative min-h-screen bg-[#141414] text-[#ffffff] flex flex-col items-center justify-center p-4 selection:bg-[#34877c] selection:text-white overflow-hidden">
+      {/* Animated Brand Particles in Background */}
+      <ParticleBackground />
+
+      {/* Background Subtle Radial Accent */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,135,124,0.08)_0,transparent_75%)] pointer-events-none z-0" />
 
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Brand Card / Header */}
@@ -57,7 +74,7 @@ export const LoginScreen: React.FC = () => {
         </div>
 
         {/* Login Box */}
-        <div className="bg-[#202020] border border-[#777777]/20 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-6">
+        <div className="bg-[#202020]/90 backdrop-blur-md border border-[#777777]/20 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-6">
           {inactivityLoggedOut && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
@@ -69,11 +86,19 @@ export const LoginScreen: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#888888] mb-3 text-center">
-              Seleccioná tu usuario
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-[#888888]">
+                Seleccioná tu usuario
+              </label>
+              {selectedMember && (
+                <span className="text-[11px] font-medium text-[#34877c] flex items-center gap-1">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  {selectedMember.name}
+                </span>
+              )}
+            </div>
 
-            {/* 3 Users Selector */}
+            {/* 3 Users Selector - None pre-selected */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {team.map(member => {
                 const isSelected = member.id === selectedMemberId;
@@ -82,17 +107,17 @@ export const LoginScreen: React.FC = () => {
                     key={member.id}
                     type="button"
                     onClick={() => handleSelectUser(member.id)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center group ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center group cursor-pointer ${
                       isSelected
-                        ? 'border-[#34877c] bg-[#34877c]/10 text-white ring-1 ring-[#34877c]'
-                        : 'border-[#777777]/20 bg-[#141414]/50 text-[#888888] hover:border-[#777777]/40 hover:text-slate-200'
+                        ? 'border-[#34877c] bg-[#34877c]/15 text-white ring-2 ring-[#34877c] shadow-lg shadow-[#34877c]/20 scale-[1.02]'
+                        : 'border-[#777777]/20 bg-[#141414]/60 text-[#888888] hover:border-[#34877c]/50 hover:bg-[#1a1a1a] hover:text-slate-200'
                     }`}
                   >
                     <div
                       className={`w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-all mb-2 shadow-sm ${
                         isSelected
-                          ? 'bg-[#34877c] text-white ring-2 ring-emerald-400/40'
-                          : 'bg-[#333333] text-[#aaaaaa] group-hover:bg-[#444444]'
+                          ? 'bg-[#34877c] text-white ring-2 ring-teal-300'
+                          : 'bg-[#2a2a2a] text-[#aaaaaa] group-hover:bg-[#34877c]/20 group-hover:text-white'
                       }`}
                     >
                       {member.initials}
@@ -113,21 +138,21 @@ export const LoginScreen: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-[#aaaaaa] mb-1.5">
-                Contraseña
+                Contraseña {selectedMember ? `de ${selectedMember.name.split(' ')[0]}` : ''}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#777777]">
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
+                  ref={passwordInputRef}
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => {
                     setPassword(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="Ingresá tu contraseña"
-                  autoFocus
+                  placeholder={selectedMember ? "Ingresá tu contraseña" : "Primero elegí tu usuario arriba"}
                   className="w-full pl-9 pr-10 py-2.5 bg-[#141414] border border-[#777777]/30 focus:border-[#34877c] focus:ring-1 focus:ring-[#34877c] rounded-xl text-xs sm:text-sm text-white placeholder-[#555555] outline-none transition-all"
                 />
                 <button
@@ -156,7 +181,7 @@ export const LoginScreen: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 px-4 bg-[#34877c] hover:bg-[#2a6d63] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center space-x-2 transition-colors shadow-lg"
+              className="w-full py-2.5 px-4 bg-[#34877c] hover:bg-[#2a6d63] disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-[#34877c]/25 active:scale-[0.99] cursor-pointer"
             >
               <span>{isLoading ? 'Accediendo...' : 'Ingresar al Dashboard'}</span>
               <ArrowRight className="w-4 h-4" />
