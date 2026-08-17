@@ -92,7 +92,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
   const handleReset = () => {
     if (
       window.confirm(
-        '¿Deseás reiniciar todos los datos a la configuración de muestra inicial de UNKE?'
+        '¿Deseás limpiar la base de datos para comenzar desde cero (0 proyectos, 0 presupuestos, 0 clientes) manteniendo los usuarios y datos bancarios oficiales de UNKE?'
       )
     ) {
       resetToSampleData();
@@ -283,7 +283,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
             className="flex items-center gap-1.5 text-rose-400 hover:underline"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Restablecer datos de muestra</span>
+            <span>Limpiar / Vaciar base de datos</span>
           </button>
 
           <button

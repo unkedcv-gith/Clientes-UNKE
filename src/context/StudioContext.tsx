@@ -141,15 +141,229 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const lastActivityRef = useRef<number>(Date.now());
   const lastSavedActivityRef = useRef<number>(Date.now());
-  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos de inactividad
+  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes inactivity
 
+  // Data Collections (Starts 100% clean for real user entries)
+  const [clients, setClients] = useState<Client[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
+  });
+
+  const [projects, setProjects] = useState<Project[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS);
+  });
+
+  const [budgets, setBudgets] = useState<Budget[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS);
+  });
+
+  const [postIts, setPostIts] = useState<PostIt[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS);
+  });
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+  });
+
+  // Studio Bank Details
+  const [studioBank, setStudioBank] = useState(() => {
+    return loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK);
+  });
+
+  const updateStudioBank = useCallback((bank: typeof DEFAULT_STUDIO_BANK) => {
+    setStudioBank(bank);
+    saveToStorage(STORAGE_KEYS.STUDIO_INFO, bank);
+  }, []);
+
+  // Broadcast Channel setup for Instant Inter-Tab / Inter-Session Sync
+  const broadcastChannel = useMemo(() => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      return new BroadcastChannel('unke_studio_sync_channel');
+    }
+    return null;
+  }, []);
+
+  // Broadcast Data Changes
+  const broadcastSync = useCallback((type: string, payload?: unknown) => {
+    saveToStorage(STORAGE_KEYS.DATA_SYNC_TIMESTAMP, Date.now());
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({ type, payload, senderId: currentUser.id, senderName: currentUser.name, timestamp: Date.now() });
+    }
+  }, [broadcastChannel, currentUser]);
+
+  // Realtime Presence & Editing Collisions
+  const [activePresences, setActivePresences] = useState<ActiveUserPresence[]>(() => {
+    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
+    const threshold = Date.now() - 12000;
+    return stored.filter(p => p.lastHeartbeat > threshold);
+  });
+
+  const [currentEditingItem, setCurrentEditingItem] = useState<{ id: string; title: string } | null>(null);
+  const [otherEditorWarning, setOtherEditorWarning] = useState<string | null>(null);
+
+  // Presence heartbeat helper (Updates shared localStorage presence list + BroadcastChannel)
+  const syncPresenceHeartbeat = useCallback(() => {
+    if (!isAuthenticated) return;
+
+    const currentPresence: ActiveUserPresence = {
+      memberId: currentUser.id,
+      memberName: currentUser.name,
+      memberInitials: currentUser.initials,
+      memberColor: currentUser.avatarColor,
+      currentView: activeTab,
+      editingItemId: currentEditingItem?.id || null,
+      editingItemTitle: currentEditingItem?.title || null,
+      lastHeartbeat: Date.now(),
+    };
+
+    const now = Date.now();
+    const threshold = now - 12000; // 12 seconds validity
+    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
+    const filtered = stored.filter(p => p.memberId !== currentUser.id && p.lastHeartbeat > threshold);
+    const updated = [...filtered, currentPresence];
+
+    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
+    setActivePresences(updated);
+
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({
+        type: 'HEARTBEAT',
+        presence: currentPresence,
+      });
+    }
+  }, [isAuthenticated, currentUser, activeTab, currentEditingItem, broadcastChannel]);
+
+  // Remove presence on logout or page close
+  const removeMyPresence = useCallback(() => {
+    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
+    const updated = stored.filter(p => p.memberId !== currentUser.id);
+    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
+    setActivePresences(updated);
+
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({
+        type: 'USER_LOGOUT',
+        memberId: currentUser.id,
+      });
+    }
+  }, [currentUser.id, broadcastChannel]);
+
+  // Periodic heartbeat timer
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    syncPresenceHeartbeat();
+    const interval = setInterval(syncPresenceHeartbeat, 3000);
+
+    const handleBeforeUnload = () => {
+      removeMyPresence();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isAuthenticated, syncPresenceHeartbeat, removeMyPresence]);
+
+  // Multi-tab Storage Event Listener for Shared Database
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!e.key) return;
+
+      if (e.key === STORAGE_KEYS.CLIENTS) {
+        setClients(loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS));
+      } else if (e.key === STORAGE_KEYS.PROJECTS) {
+        setProjects(loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS));
+      } else if (e.key === STORAGE_KEYS.BUDGETS) {
+        setBudgets(loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS));
+      } else if (e.key === STORAGE_KEYS.POSTITS) {
+        setPostIts(loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS));
+      } else if (e.key === STORAGE_KEYS.AUDIT_LOGS) {
+        setAuditLogs(loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS));
+      } else if (e.key === STORAGE_KEYS.STUDIO_INFO) {
+        setStudioBank(loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK));
+      } else if (e.key === STORAGE_KEYS.TEAM) {
+        setTeam(loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM));
+      } else if (e.key === STORAGE_KEYS.ACTIVE_PRESENCES) {
+        const presences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
+        const valid = presences.filter(p => Date.now() - p.lastHeartbeat < 12000);
+        setActivePresences(valid);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Broadcast channel message handler
+  useEffect(() => {
+    if (!broadcastChannel) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data) return;
+
+      if (data.type === 'HEARTBEAT' && data.presence) {
+        const presence: ActiveUserPresence = data.presence;
+        setActivePresences(prev => {
+          const now = Date.now();
+          const filtered = prev.filter(p => p.memberId !== presence.memberId && now - p.lastHeartbeat < 12000);
+          return [...filtered, presence];
+        });
+
+        // Collision warning
+        if (
+          currentEditingItem &&
+          presence.editingItemId === currentEditingItem.id &&
+          presence.memberId !== currentUser.id
+        ) {
+          setOtherEditorWarning(
+            `⚠️ ¡Atención! ${presence.memberName} también está editando "${currentEditingItem.title}". Coordinen para no pisar cambios.`
+          );
+        }
+      }
+
+      if (data.type === 'USER_LOGOUT' && data.memberId) {
+        setActivePresences(prev => prev.filter(p => p.memberId !== data.memberId));
+      }
+
+      if (data.type === 'DATA_RELOAD') {
+        // Re-read storage
+        setClients(loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS));
+        setProjects(loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS));
+        setBudgets(loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS));
+        setPostIts(loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS));
+        setAuditLogs(loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS));
+        setStudioBank(loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK));
+        setTeam(loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM));
+      }
+    };
+
+    broadcastChannel.addEventListener('message', handleMessage);
+    return () => broadcastChannel.removeEventListener('message', handleMessage);
+  }, [broadcastChannel, currentUser, currentEditingItem]);
+
+  // Clean stale presences every 4 seconds
+  useEffect(() => {
+    const cleaner = setInterval(() => {
+      const now = Date.now();
+      const threshold = now - 12000;
+      setActivePresences(prev => {
+        const filtered = prev.filter(p => p.lastHeartbeat > threshold);
+        return filtered;
+      });
+    }, 4000);
+    return () => clearInterval(cleaner);
+  }, []);
+
+  // Login
   const login = useCallback((memberId: string, passwordInput: string) => {
     const member = team.find(m => m.id === memberId);
     if (!member) {
       return { success: false, error: 'Usuario no encontrado.' };
     }
 
-    // Passwords for UNKE team
     const validPassword = member.password || (
       member.id === 'member_nacho' ? 'nachounke' :
       member.id === 'member_fede' ? 'fedeunke' :
@@ -171,14 +385,33 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     saveToStorage(STORAGE_KEYS.AUTH_SESSION, true);
     setInactivityLoggedOut(false);
     setActiveTab('dashboard');
+
+    // Register presence immediately
+    const currentPresence: ActiveUserPresence = {
+      memberId: member.id,
+      memberName: member.name,
+      memberInitials: member.initials,
+      memberColor: member.avatarColor,
+      currentView: 'dashboard',
+      editingItemId: null,
+      editingItemTitle: null,
+      lastHeartbeat: now,
+    };
+    const storedPresences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
+    const updatedPresences = [...storedPresences.filter(p => p.memberId !== member.id), currentPresence];
+    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updatedPresences);
+    setActivePresences(updatedPresences);
+
     return { success: true };
   }, [team]);
 
+  // Logout
   const logout = useCallback(() => {
+    removeMyPresence();
     setIsAuthenticated(false);
     saveToStorage(STORAGE_KEYS.AUTH_SESSION, false);
     setActiveTab('dashboard');
-  }, []);
+  }, [removeMyPresence]);
 
   // 5-Minute Inactivity Auto-Logout Effect
   useEffect(() => {
@@ -207,7 +440,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.addEventListener(evt, recordUserActivity, { passive: true });
     });
 
-    // Check every 4 seconds for inactivity
     const interval = setInterval(() => {
       const storedLastActivity = loadFromStorage<number>(STORAGE_KEYS.LAST_ACTIVITY, lastActivityRef.current);
       const effectiveLastActivity = Math.max(lastActivityRef.current, storedLastActivity);
@@ -218,7 +450,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }, 4000);
 
-    // Tab visibility and focus check
     const handleVisibilityOrFocus = () => {
       const storedLastActivity = loadFromStorage<number>(STORAGE_KEYS.LAST_ACTIVITY, lastActivityRef.current);
       const effectiveLastActivity = Math.max(lastActivityRef.current, storedLastActivity);
@@ -255,38 +486,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       saveToStorage(STORAGE_KEYS.TEAM, next);
       return next;
     });
-  }, []);
-
-  // Studio Bank Details
-  const [studioBank, setStudioBank] = useState(() => {
-    return loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK);
-  });
-
-  const updateStudioBank = useCallback((bank: typeof DEFAULT_STUDIO_BANK) => {
-    setStudioBank(bank);
-    saveToStorage(STORAGE_KEYS.STUDIO_INFO, bank);
-  }, []);
-
-  // Data Collections
-  const [clients, setClients] = useState<Client[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-  });
-
-  const [projects, setProjects] = useState<Project[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS);
-  });
-
-  const [budgets, setBudgets] = useState<Budget[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS);
-  });
-
-  const [postIts, setPostIts] = useState<PostIt[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS);
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
-  });
+    broadcastSync('DATA_RELOAD');
+  }, [broadcastSync]);
 
   // Audit Logger helper
   const addAuditLog = useCallback((
@@ -312,109 +513,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, [currentUser]);
 
-  // Realtime Presence & Broadcast Sync
-  const [activePresences, setActivePresences] = useState<ActiveUserPresence[]>([]);
-  const [currentEditingItem, setCurrentEditingItem] = useState<{ id: string; title: string } | null>(null);
-  const [otherEditorWarning, setOtherEditorWarning] = useState<string | null>(null);
-
-  // Broadcast Channel setup
-  const broadcastChannel = useMemo(() => {
-    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      return new BroadcastChannel('unke_studio_sync_channel');
-    }
-    return null;
-  }, []);
-
-  // Broadcast Data Changes
-  const broadcastSync = useCallback((type: string, payload?: unknown) => {
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({ type, payload, senderId: currentUser.id, senderName: currentUser.name });
-    }
-  }, [broadcastChannel, currentUser]);
-
-  // Heartbeat Presence sender
-  useEffect(() => {
-    const sendHeartbeat = () => {
-      if (broadcastChannel) {
-        broadcastChannel.postMessage({
-          type: 'HEARTBEAT',
-          presence: {
-            memberId: currentUser.id,
-            memberName: currentUser.name,
-            memberInitials: currentUser.initials,
-            memberColor: currentUser.avatarColor,
-            currentView: activeTab,
-            editingItemId: currentEditingItem?.id || null,
-            editingItemTitle: currentEditingItem?.title || null,
-            lastHeartbeat: Date.now(),
-          } as ActiveUserPresence,
-        });
-      }
-    };
-
-    sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 3000);
-    return () => clearInterval(interval);
-  }, [broadcastChannel, currentUser, activeTab, currentEditingItem]);
-
-  // Clean stale presences (>8 seconds without heartbeat)
-  useEffect(() => {
-    const cleaner = setInterval(() => {
-      const threshold = Date.now() - 8000;
-      setActivePresences(prev => prev.filter(p => p.lastHeartbeat > threshold));
-    }, 4000);
-    return () => clearInterval(cleaner);
-  }, []);
-
-  // Listen to incoming messages from other tabs/users
-  useEffect(() => {
-    if (!broadcastChannel) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (!data) return;
-
-      if (data.type === 'HEARTBEAT' && data.presence) {
-        const presence: ActiveUserPresence = data.presence;
-        // Don't track self
-        if (presence.memberId === currentUser.id) return;
-
-        setActivePresences(prev => {
-          const filtered = prev.filter(p => p.memberId !== presence.memberId);
-          return [...filtered, presence];
-        });
-
-        // Check for editing collision
-        if (
-          currentEditingItem &&
-          presence.editingItemId === currentEditingItem.id &&
-          presence.memberId !== currentUser.id
-        ) {
-          setOtherEditorWarning(
-            `⚠️ ¡Atención! ${presence.memberName} también está editando "${currentEditingItem.title}". Tengan cuidado de no sobreescribir cambios.`
-          );
-        }
-      }
-
-      if (data.type === 'DATA_RELOAD') {
-        // Re-read storage
-        setClients(loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS));
-        setProjects(loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS));
-        setBudgets(loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS));
-        setPostIts(loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS));
-        setAuditLogs(loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS));
-      }
-    };
-
-    broadcastChannel.addEventListener('message', handleMessage);
-    return () => broadcastChannel.removeEventListener('message', handleMessage);
-  }, [broadcastChannel, currentUser, currentEditingItem]);
-
   // Start / Stop Editing Item helpers
   const startEditingItem = useCallback((id: string, title: string) => {
     setCurrentEditingItem({ id, title });
 
-    // Check if someone else is already editing it
     const collision = activePresences.find(
       p => p.editingItemId === id && p.memberId !== currentUser.id
     );
@@ -718,14 +820,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const budget = budgets.find(b => b.id === budgetId);
     if (!budget) return null;
 
-    // Build deliverables from budget items
     const deliverables = budget.items.map(item => ({
       id: generateId('del'),
       title: item.description,
       done: false,
     }));
 
-    // Target delivery 30 days from now
     const delivery = new Date();
     delivery.setDate(delivery.getDate() + 30);
     const deliveryDate = delivery.toISOString().split('T')[0];
@@ -758,7 +858,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
     };
 
-    // Update project list & mark budget as approved/converted
     setProjects(prev => {
       const updated = [newProject, ...prev];
       saveToStorage(STORAGE_KEYS.PROJECTS, updated);
@@ -841,6 +940,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const exportDataJSON = useCallback(() => {
     const bundle = {
       app: 'UNKE Dashboard',
+      version: '4.0',
       exportedAt: new Date().toISOString(),
       exportedBy: currentUser.name,
       clients,
@@ -857,23 +957,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const importDataJSON = useCallback((jsonString: string): boolean => {
     try {
       const data = JSON.parse(jsonString);
-      if (data.clients) {
+      if (Array.isArray(data.clients)) {
         setClients(data.clients);
         saveToStorage(STORAGE_KEYS.CLIENTS, data.clients);
       }
-      if (data.projects) {
+      if (Array.isArray(data.projects)) {
         setProjects(data.projects);
         saveToStorage(STORAGE_KEYS.PROJECTS, data.projects);
       }
-      if (data.budgets) {
+      if (Array.isArray(data.budgets)) {
         setBudgets(data.budgets);
         saveToStorage(STORAGE_KEYS.BUDGETS, data.budgets);
       }
-      if (data.postIts) {
+      if (Array.isArray(data.postIts)) {
         setPostIts(data.postIts);
         saveToStorage(STORAGE_KEYS.POSTITS, data.postIts);
       }
-      if (data.team) {
+      if (Array.isArray(data.team)) {
         setTeam(data.team);
         saveToStorage(STORAGE_KEYS.TEAM, data.team);
       }
@@ -881,7 +981,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setStudioBank(data.studioBank);
         saveToStorage(STORAGE_KEYS.STUDIO_INFO, data.studioBank);
       }
-      if (data.auditLogs) {
+      if (Array.isArray(data.auditLogs)) {
         setAuditLogs(data.auditLogs);
         saveToStorage(STORAGE_KEYS.AUDIT_LOGS, data.auditLogs);
       }

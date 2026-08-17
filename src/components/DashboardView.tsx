@@ -73,9 +73,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // MRR (Monthly Recurring Revenue from retainers)
   const monthlyRecurringRevenue = retainers.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
 
-  // Total Active Project pipeline value
-  const activeProjectsTotalValue = activeProjects.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
-
   // Total Pending Collection (ARS)
   const pendingCollection = projects.reduce((acc, curr) => {
     if (curr.type === 'proyecto') {
@@ -143,7 +140,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Bento Tile 1: Hero Facturación Mensual / MRR (Span 4) */}
         <div className="md:col-span-4 bg-[#34877c] rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden shadow-lg min-h-[260px]">
-          {/* Subtle background circles for depth */}
           <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
           <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full blur-lg pointer-events-none"></div>
 
@@ -154,7 +150,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
               <div className="flex items-center space-x-1.5 bg-black/25 px-2.5 py-1 rounded-full text-[10px] text-white font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-                <span>Sincronizado</span>
+                <span>En vivo</span>
               </div>
             </div>
 
@@ -163,7 +159,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {formatARS(monthlyRecurringRevenue)}
               </div>
               <div className="text-xs text-emerald-100/90 font-medium mt-1">
-                Ingreso recurrente estimado por abonos de mantenimiento
+                Ingreso recurrente mensual en abonos activos
               </div>
             </div>
           </div>
@@ -202,7 +198,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex items-center space-x-1 bg-[#141414] p-1 rounded-xl border border-[#777777]/20 self-start sm:self-center">
                 <button
                   onClick={() => setProjectTableFilter('activos')}
-                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors ${
+                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
                     projectTableFilter === 'activos'
                       ? 'bg-[#34877c] text-white shadow-xs'
                       : 'text-[#777777] hover:text-white'
@@ -212,7 +208,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
                 <button
                   onClick={() => setProjectTableFilter('abonos')}
-                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors ${
+                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
                     projectTableFilter === 'abonos'
                       ? 'bg-[#34877c] text-white shadow-xs'
                       : 'text-[#777777] hover:text-white'
@@ -222,7 +218,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
                 <button
                   onClick={() => setProjectTableFilter('todos')}
-                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors ${
+                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
                     projectTableFilter === 'todos'
                       ? 'bg-[#34877c] text-white shadow-xs'
                       : 'text-[#777777] hover:text-white'
@@ -247,8 +243,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <tbody className="divide-y divide-[#777777]/10">
                   {tableProjects.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-[#777777] italic">
-                        No hay proyectos en esta categoría.
+                      <td colSpan={4} className="py-8 text-center text-[#777777]">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <FolderKanban className="w-8 h-8 text-[#555555]" />
+                          <p className="text-xs text-[#888888] font-medium">
+                            No hay proyectos cargados en esta vista.
+                          </p>
+                          <button
+                            onClick={onNewProject}
+                            className="text-xs text-[#34877c] hover:underline font-bold"
+                          >
+                            + Crear el primer proyecto
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -309,14 +316,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="mt-4 pt-3 border-t border-[#777777]/15 flex items-center justify-between">
             <button
               onClick={onNewProject}
-              className="flex items-center space-x-1.5 text-xs text-[#34877c] hover:text-[#44a598] font-bold"
+              className="flex items-center space-x-1.5 text-xs text-[#34877c] hover:text-[#44a598] font-bold cursor-pointer"
             >
               <FolderPlus className="w-4 h-4" />
               <span>Cargar nuevo proyecto</span>
             </button>
             <button
               onClick={() => setActiveTab('proyectos')}
-              className="text-xs text-[#888888] hover:text-white flex items-center space-x-1"
+              className="text-xs text-[#888888] hover:text-white flex items-center space-x-1 cursor-pointer"
             >
               <span>Ver todos los proyectos</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -339,7 +346,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={() => setShowQuickNoteForm(!showQuickNoteForm)}
-                className="text-xs text-[#34877c] hover:text-[#44a598] font-bold flex items-center space-x-1"
+                className="text-xs text-[#34877c] hover:text-[#44a598] font-bold flex items-center space-x-1 cursor-pointer"
               >
                 <StickyNote className="w-3.5 h-3.5" />
                 <span>{showQuickNoteForm ? 'Cerrar' : 'Nueva nota'}</span>
@@ -377,7 +384,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         type="button"
                         key={item.id}
                         onClick={() => setQuickNoteColor(item.id as PostItColor)}
-                        className={`w-4 h-4 rounded-full border ${item.bg} ${
+                        className={`w-4 h-4 rounded-full border ${item.bg} cursor-pointer ${
                           quickNoteColor === item.id ? 'ring-2 ring-white scale-125' : 'opacity-70 hover:opacity-100'
                         }`}
                         title={item.id}
@@ -387,7 +394,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <button
                     type="submit"
                     disabled={!quickNoteText.trim()}
-                    className="bg-[#34877c] hover:bg-[#2a6d63] disabled:opacity-50 text-white text-xs px-3 py-1 rounded-lg font-bold transition-colors"
+                    className="bg-[#34877c] hover:bg-[#2a6d63] disabled:opacity-50 text-white text-xs px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer"
                   >
                     Pegar Nota
                   </button>
@@ -395,63 +402,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </form>
             )}
 
-            {/* Tilted Bento Post-It Previews */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {postIts.slice(0, 4).map((note, idx) => {
-                const tilts = ['-rotate-1', 'rotate-1', '-rotate-0.5', 'rotate-2'];
-                const tilt = tilts[idx % tilts.length];
-                const colorClasses = getPostItBgColor(note.color);
+            {/* Tilted Bento Post-It Previews or Clean Empty State */}
+            {postIts.length === 0 ? (
+              <div className="p-4 bg-[#141414]/60 rounded-2xl border border-dashed border-[#777777]/25 text-center my-2">
+                <StickyNote className="w-6 h-6 text-[#555555] mx-auto mb-1.5" />
+                <p className="text-xs text-[#888888]">No hay notas rápidas en el muro.</p>
+                <button
+                  onClick={() => setShowQuickNoteForm(true)}
+                  className="text-xs text-[#34877c] hover:underline font-bold mt-1.5 inline-block cursor-pointer"
+                >
+                  + Dejar recordatorio para el equipo
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {postIts.slice(0, 4).map((note, idx) => {
+                  const tilts = ['-rotate-1', 'rotate-1', '-rotate-0.5', 'rotate-2'];
+                  const tilt = tilts[idx % tilts.length];
+                  const colorClasses = getPostItBgColor(note.color);
 
-                return (
-                  <div
-                    key={note.id}
-                    onClick={() => setActiveTab('postits')}
-                    className={`group p-3.5 rounded-2xl border shadow-md ${colorClasses} ${tilt} hover:rotate-0 hover:scale-[1.02] transition-all cursor-pointer flex flex-col justify-between min-h-[105px]`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-1.5 mb-1.5">
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                          {note.pinned && (
-                            <Pin className="w-3 h-3 fill-current text-rose-500 shrink-0 rotate-12" />
-                          )}
-                          <span className="font-black text-xs uppercase tracking-wide break-words whitespace-normal leading-snug">
-                            {note.title}
-                          </span>
+                  return (
+                    <div
+                      key={note.id}
+                      onClick={() => setActiveTab('postits')}
+                      className={`group p-3.5 rounded-2xl border shadow-md ${colorClasses} ${tilt} hover:rotate-0 hover:scale-[1.02] transition-all cursor-pointer flex flex-col justify-between min-h-[105px]`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                          <div className="flex items-center gap-1 min-w-0 flex-1">
+                            {note.pinned && (
+                              <Pin className="w-3 h-3 fill-current text-rose-500 shrink-0 rotate-12" />
+                            )}
+                            <span className="font-black text-xs uppercase tracking-wide break-words whitespace-normal leading-snug">
+                              {note.title}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deletePostIt(note.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black/15 dark:hover:bg-white/20 rounded transition-opacity shrink-0 cursor-pointer"
+                            title="Eliminar nota"
+                          >
+                            <Trash2 className="w-3 h-3 opacity-75 hover:opacity-100" />
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deletePostIt(note.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black/15 dark:hover:bg-white/20 rounded transition-opacity shrink-0"
-                          title="Eliminar nota"
-                        >
-                          <Trash2 className="w-3 h-3 opacity-75 hover:opacity-100" />
-                        </button>
+                        <p className="text-[11px] leading-relaxed line-clamp-3 font-medium opacity-90">
+                          {note.content}
+                        </p>
                       </div>
-                      <p className="text-[11px] leading-relaxed line-clamp-3 font-medium opacity-90">
-                        {note.content}
-                      </p>
+                      <div className="text-[9px] font-bold opacity-75 mt-2.5 flex items-center justify-between">
+                        <span>— {note.authorName}</span>
+                        {note.tags && note.tags.length > 0 && (
+                          <span className="text-[8px] opacity-75 font-mono">#{note.tags[0]}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[9px] font-bold opacity-75 mt-2.5 flex items-center justify-between">
-                      <span>— {note.authorName}</span>
-                      {note.tags && note.tags.length > 0 && (
-                        <span className="text-[8px] opacity-75 font-mono">#{note.tags[0]}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="mt-3 pt-2 border-t border-[#777777]/15">
             <button
               onClick={() => setActiveTab('postits')}
-              className="text-xs text-[#888888] hover:text-white flex items-center justify-between w-full"
+              className="text-xs text-[#888888] hover:text-white flex items-center justify-between w-full cursor-pointer"
             >
-              <span>Ver tablero completo de notas ({postIts.length})</span>
+              <span>Ver tablero de notas ({postIts.length})</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -489,7 +509,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <button
                   onClick={() => setActiveTab('presupuestos')}
-                  className="bg-[#34877c]/20 text-[#34877c] hover:bg-[#34877c] hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-colors"
+                  className="bg-[#34877c]/20 text-[#34877c] hover:bg-[#34877c] hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   Ver Todos
                 </button>
@@ -500,7 +520,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="mt-3 pt-2 border-t border-[#777777]/15">
             <button
               onClick={onNewBudget}
-              className="text-xs text-[#34877c] hover:text-[#44a598] font-bold flex items-center justify-between w-full"
+              className="text-xs text-[#34877c] hover:text-[#44a598] font-bold flex items-center justify-between w-full cursor-pointer"
             >
               <span>Confeccionar nuevo presupuesto</span>
               <FilePlus className="w-4 h-4" />
@@ -518,29 +538,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   Actividad Reciente
                 </h3>
               </div>
-              <span className="text-[10px] text-[#777777] font-mono">Cloud Sync: OK</span>
+              <span className="text-[10px] text-[#777777] font-mono">Sincronizado</span>
             </div>
 
             <div className="space-y-3">
-              {auditLogs.slice(0, 3).map(log => (
-                <div key={log.id} className="text-xs flex items-start space-x-2.5">
-                  <div className="w-2 h-2 rounded-full bg-[#34877c] mt-1.5 shrink-0" />
-                  <div className="flex-1">
-                    <div className="text-slate-200">
-                      <span className="font-bold text-white">{log.memberName}</span>{' '}
-                      <span className="text-[#888888]">{log.action}:</span>{' '}
-                      <span className="text-[#cccccc]">{log.details}</span>
-                    </div>
-                    <div className="text-[10px] text-[#777777] mt-0.5 font-mono">
-                      {new Date(log.timestamp).toLocaleTimeString('es-AR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}{' '}
-                      • {formatDateAR(log.timestamp)}
+              {auditLogs.length === 0 ? (
+                <div className="p-4 bg-[#141414]/60 rounded-2xl border border-dashed border-[#777777]/25 text-center my-2">
+                  <Activity className="w-6 h-6 text-[#555555] mx-auto mb-1.5" />
+                  <p className="text-xs text-[#888888]">
+                    Aún no hay acciones registradas.
+                  </p>
+                  <p className="text-[10px] text-[#666666] mt-0.5">
+                    Cada cambio de proyecto, cliente o cobro se listará aquí.
+                  </p>
+                </div>
+              ) : (
+                auditLogs.slice(0, 3).map(log => (
+                  <div key={log.id} className="text-xs flex items-start space-x-2.5">
+                    <div className="w-2 h-2 rounded-full bg-[#34877c] mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="text-slate-200">
+                        <span className="font-bold text-white">{log.memberName}</span>{' '}
+                        <span className="text-[#888888]">{log.action}:</span>{' '}
+                        <span className="text-[#cccccc]">{log.details}</span>
+                      </div>
+                      <div className="text-[10px] text-[#777777] mt-0.5 font-mono">
+                        {new Date(log.timestamp).toLocaleTimeString('es-AR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}{' '}
+                        • {formatDateAR(log.timestamp)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -580,8 +612,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <tbody className="divide-y divide-[#777777]/10">
               {retainers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-[#777777] italic">
-                    No hay abonos mensuales registrados actualmente.
+                  <td colSpan={4} className="py-8 text-center text-[#777777]">
+                    <div className="flex flex-col items-center justify-center space-y-1.5">
+                      <Repeat className="w-6 h-6 text-[#555555]" />
+                      <p className="text-xs text-[#888888] font-medium">
+                        No hay abonos mensuales registrados actualmente.
+                      </p>
+                      <button
+                        onClick={onNewProject}
+                        className="text-xs text-[#34877c] hover:underline font-bold cursor-pointer"
+                      >
+                        + Crear un abono de mantenimiento recurrente
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -602,7 +645,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <td className="py-2.5 text-right">
                         <button
                           onClick={() => toggleMonthlyPayment(ret.id, currentMonthStr)}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs ${
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer ${
                             isPaidThisMonth
                               ? 'bg-emerald-950 text-emerald-300 border border-emerald-700 hover:bg-emerald-900'
                               : 'bg-rose-950 text-rose-300 border border-rose-800 hover:bg-rose-900'

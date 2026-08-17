@@ -39,6 +39,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const {
     projects,
     clients,
+    addClient,
     currentUser,
     activePresences,
     addProject,
@@ -73,6 +74,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formClientId, setFormClientId] = useState('');
+  const [formNewClientName, setFormNewClientName] = useState('');
   const [formType, setFormType] = useState<ProjectType>('proyecto');
   const [formStatus, setFormStatus] = useState<ProjectStatus>('en_progreso');
   const [formPaymentStatus, setFormPaymentStatus] = useState<PaymentStatus>('pendiente');
@@ -106,7 +108,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     setEditingProject(null);
     setFormTitle('');
     setFormDescription('');
-    setFormClientId(clients[0]?.id || '');
+    setFormClientId(clients[0]?.id || 'new');
+    setFormNewClientName('');
     setFormType('proyecto');
     setFormStatus('en_progreso');
     setFormPaymentStatus('pendiente');
@@ -133,6 +136,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     setFormTitle(project.title);
     setFormDescription(project.description || '');
     setFormClientId(project.clientId);
+    setFormNewClientName('');
     setFormType(project.type);
     setFormStatus(project.status);
     setFormPaymentStatus(project.paymentStatus);
@@ -168,8 +172,26 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   const handleSaveProject = (e: React.FormEvent) => {
     e.preventDefault();
-    const client = clients.find(c => c.id === formClientId);
-    const clientName = client ? client.name : 'Cliente General';
+    let effectiveClientId = formClientId;
+    let effectiveClientName = '';
+
+    if (formClientId === 'new' || (!formClientId && formNewClientName.trim())) {
+      const createdClient = addClient({
+        name: formNewClientName.trim() || 'Nuevo Cliente',
+        company: '',
+        email: '',
+        phone: '',
+        notes: 'Creado desde carga de proyecto',
+        status: 'activo',
+        hasWeb: false,
+      });
+      effectiveClientId = createdClient.id;
+      effectiveClientName = createdClient.name;
+    } else {
+      const client = clients.find(c => c.id === formClientId);
+      effectiveClientName = client ? client.name : formNewClientName.trim() || 'Cliente General';
+    }
+
     const totalAmount = parseARS(formTotalAmount);
     const paidAmount = parseARS(formPaidAmount);
     const tags = formTags
@@ -181,8 +203,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       updateProject(editingProject.id, {
         title: formTitle,
         description: formDescription,
-        clientId: formClientId,
-        clientName,
+        clientId: effectiveClientId,
+        clientName: effectiveClientName,
         type: formType,
         status: formStatus,
         paymentStatus: formPaymentStatus,
@@ -198,8 +220,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       addProject({
         title: formTitle,
         description: formDescription,
-        clientId: formClientId,
-        clientName,
+        clientId: effectiveClientId,
+        clientName: effectiveClientName,
         type: formType,
         status: formStatus,
         paymentStatus: formPaymentStatus,
@@ -762,21 +784,44 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               {/* Title & Client */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Cliente *
-                  </label>
-                  <select
-                    value={formClientId}
-                    onChange={e => setFormClientId(e.target.value)}
-                    required
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
-                  >
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} {c.company ? `(${c.company})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Cliente *
+                    </label>
+                    {clients.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormClientId(formClientId === 'new' ? (clients[0]?.id || '') : 'new')}
+                        className="text-[10px] text-[#34877c] hover:underline font-semibold"
+                      >
+                        {formClientId === 'new' ? 'Elegir existente' : '+ Nuevo cliente'}
+                      </button>
+                    )}
+                  </div>
+                  {clients.length === 0 || formClientId === 'new' ? (
+                    <input
+                      type="text"
+                      value={formNewClientName}
+                      onChange={e => setFormNewClientName(e.target.value)}
+                      placeholder="Nombre del cliente o empresa..."
+                      required
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                    />
+                  ) : (
+                    <select
+                      value={formClientId}
+                      onChange={e => setFormClientId(e.target.value)}
+                      required
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                    >
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.company ? `(${c.company})` : ''}
+                        </option>
+                      ))}
+                      <option value="new">+ Crear nuevo cliente...</option>
+                    </select>
+                  )}
                 </div>
 
                 <div>

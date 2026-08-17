@@ -34,6 +34,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   const {
     budgets,
     clients,
+    addClient,
     currentUser,
     studioBank,
     addBudget,
@@ -59,6 +60,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   // Form State
   const [formTitle, setFormTitle] = useState('');
   const [formClientId, setFormClientId] = useState('');
+  const [formNewClientName, setFormNewClientName] = useState('');
   const [formClientContact, setFormClientContact] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formValidUntilDate, setFormValidUntilDate] = useState('');
@@ -83,7 +85,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   const handleOpenCreate = () => {
     setEditingBudget(null);
     setFormTitle('');
-    setFormClientId(clients[0]?.id || '');
+    setFormClientId(clients[0]?.id || 'new');
+    setFormNewClientName('');
     setFormClientContact(clients[0]?.email || '');
     setFormDate(new Date().toISOString().split('T')[0]);
 
@@ -115,6 +118,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     startEditingItem(budget.id, budget.title);
     setFormTitle(budget.title);
     setFormClientId(budget.clientId);
+    setFormNewClientName('');
     setFormClientContact(budget.clientContact || '');
     setFormDate(budget.date);
     setFormValidUntilDate(budget.validUntilDate);
@@ -177,14 +181,31 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
   const handleSaveBudget = (e: React.FormEvent) => {
     e.preventDefault();
-    const client = clients.find(c => c.id === formClientId);
-    const clientName = client ? client.name : 'Cliente';
+    let effectiveClientId = formClientId;
+    let effectiveClientName = '';
+
+    if (formClientId === 'new' || (!formClientId && formNewClientName.trim())) {
+      const createdClient = addClient({
+        name: formNewClientName.trim() || 'Nuevo Cliente',
+        company: '',
+        email: formClientContact.trim() || '',
+        phone: '',
+        notes: 'Creado desde presupuesto comercial',
+        status: 'activo',
+        hasWeb: false,
+      });
+      effectiveClientId = createdClient.id;
+      effectiveClientName = createdClient.name;
+    } else {
+      const client = clients.find(c => c.id === formClientId);
+      effectiveClientName = client ? client.name : formNewClientName.trim() || 'Cliente';
+    }
 
     if (editingBudget) {
       updateBudget(editingBudget.id, {
         title: formTitle,
-        clientId: formClientId,
-        clientName,
+        clientId: effectiveClientId,
+        clientName: effectiveClientName,
         clientContact: formClientContact,
         date: formDate,
         validUntilDate: formValidUntilDate,
@@ -200,8 +221,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     } else {
       addBudget({
         title: formTitle,
-        clientId: formClientId,
-        clientName,
+        clientId: effectiveClientId,
+        clientName: effectiveClientName,
         clientContact: formClientContact,
         date: formDate,
         validUntilDate: formValidUntilDate,
@@ -530,26 +551,49 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
               {/* Client & Title */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Cliente *
-                  </label>
-                  <select
-                    value={formClientId}
-                    onChange={e => {
-                      const cId = e.target.value;
-                      setFormClientId(cId);
-                      const sel = clients.find(c => c.id === cId);
-                      if (sel) setFormClientContact(sel.email || '');
-                    }}
-                    required
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
-                  >
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} {c.company ? `(${c.company})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Cliente *
+                    </label>
+                    {clients.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormClientId(formClientId === 'new' ? (clients[0]?.id || '') : 'new')}
+                        className="text-[10px] text-[#34877c] hover:underline font-semibold"
+                      >
+                        {formClientId === 'new' ? 'Elegir existente' : '+ Nuevo cliente'}
+                      </button>
+                    )}
+                  </div>
+                  {clients.length === 0 || formClientId === 'new' ? (
+                    <input
+                      type="text"
+                      value={formNewClientName}
+                      onChange={e => setFormNewClientName(e.target.value)}
+                      placeholder="Nombre del cliente o empresa..."
+                      required
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                    />
+                  ) : (
+                    <select
+                      value={formClientId}
+                      onChange={e => {
+                        const cId = e.target.value;
+                        setFormClientId(cId);
+                        const sel = clients.find(c => c.id === cId);
+                        if (sel) setFormClientContact(sel.email || '');
+                      }}
+                      required
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                    >
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.company ? `(${c.company})` : ''}
+                        </option>
+                      ))}
+                      <option value="new">+ Crear nuevo cliente...</option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
