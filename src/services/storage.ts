@@ -1,4 +1,5 @@
 import {
+  BankAccountDetails,
   Budget,
   Client,
   PostIt,
@@ -16,6 +17,7 @@ export const STORAGE_KEYS = {
   CURRENT_USER_ID: 'unke_current_user_id_v4',
   AUDIT_LOGS: 'unke_audit_logs_v4',
   STUDIO_INFO: 'unke_studio_info_v4',
+  USER_BANKS: 'unke_user_banks_v4',
   DARK_MODE: 'unke_dark_mode_v4',
   AUTH_SESSION: 'unke_auth_session_v4',
   LAST_ACTIVITY: 'unke_last_activity_v4',
@@ -54,12 +56,36 @@ export const DEFAULT_TEAM: TeamMember[] = [
   },
 ];
 
-export const DEFAULT_STUDIO_BANK = {
+export const DEFAULT_STUDIO_BANK: BankAccountDetails = {
   bank: 'Banco Galicia',
   accountHolder: 'UNKE ESTUDIO DCV S.H.',
   cbu: '0070142820000012894567',
   alias: 'UNKE.ESTUDIO.DCV',
   cuit: '30-71829304-9',
+};
+
+export const DEFAULT_USER_BANKS: Record<string, BankAccountDetails> = {
+  member_nacho: {
+    bank: 'Banco Santander',
+    accountHolder: 'Ignacio Bieski',
+    cbu: '0720023488000038491023',
+    alias: 'NACHO.UNKE.DCV',
+    cuit: '20-38491023-4',
+  },
+  member_fede: {
+    bank: 'Banco Galicia',
+    accountHolder: 'Federico Messina',
+    cbu: '0070183988000049281742',
+    alias: 'FEDE.UNKE.DCV',
+    cuit: '20-37281742-9',
+  },
+  member_willy: {
+    bank: 'Banco BBVA',
+    accountHolder: 'Willy Morinigo',
+    cbu: '0170092388000051928371',
+    alias: 'WILLY.UNKE.DCV',
+    cuit: '20-36928371-3',
+  },
 };
 
 // Zero demo data: Start clean for real production usage by UNKE

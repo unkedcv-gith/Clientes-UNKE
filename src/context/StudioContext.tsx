@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import {
   ActiveUserPresence,
   AuditLogItem,
+  BankAccountDetails,
   Budget,
   Client,
   PostIt,
@@ -11,6 +12,7 @@ import {
 import {
   DEFAULT_STUDIO_BANK,
   DEFAULT_TEAM,
+  DEFAULT_USER_BANKS,
   INITIAL_AUDIT_LOGS,
   INITIAL_BUDGETS,
   INITIAL_CLIENTS,
@@ -93,9 +95,11 @@ interface StudioContextType {
   setDarkMode: (dark: boolean) => void;
   toggleDarkMode: () => void;
 
-  // Studio Bank
-  studioBank: typeof DEFAULT_STUDIO_BANK;
-  updateStudioBank: (bank: typeof DEFAULT_STUDIO_BANK) => void;
+  // Studio Bank & Individual User Banks
+  studioBank: BankAccountDetails;
+  updateStudioBank: (bank: BankAccountDetails) => void;
+  userBanks: Record<string, BankAccountDetails>;
+  updateUserBank: (memberId: string, bank: BankAccountDetails) => void;
 
   // Backup / Reset / Cloud simulation
   exportDataJSON: () => string;
@@ -227,14 +231,28 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   // Studio Bank Details
-  const [studioBank, setStudioBank] = useState(() => {
+  const [studioBank, setStudioBank] = useState<BankAccountDetails>(() => {
     return loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK);
   });
 
-  const updateStudioBank = useCallback((bank: typeof DEFAULT_STUDIO_BANK) => {
+  const updateStudioBank = useCallback((bank: BankAccountDetails) => {
     setStudioBank(bank);
     saveToStorage(STORAGE_KEYS.STUDIO_INFO, bank);
     FirestoreService.saveStudioBank(bank);
+  }, []);
+
+  // Individual User Bank Accounts (Nacho, Fede, Willy)
+  const [userBanks, setUserBanks] = useState<Record<string, BankAccountDetails>>(() => {
+    return loadFromStorage(STORAGE_KEYS.USER_BANKS, DEFAULT_USER_BANKS);
+  });
+
+  const updateUserBank = useCallback((memberId: string, bank: BankAccountDetails) => {
+    setUserBanks(prev => {
+      const next = { ...prev, [memberId]: bank };
+      saveToStorage(STORAGE_KEYS.USER_BANKS, next);
+      FirestoreService.saveUserBanks(next);
+      return next;
+    });
   }, []);
 
   // Realtime Presence & Editing Collisions
@@ -298,6 +316,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       saveToStorage(STORAGE_KEYS.STUDIO_INFO, cloudBank);
     });
 
+    // 8. Individual User Banks
+    const unsubUserBanks = FirestoreService.subscribeUserBanks(cloudUserBanks => {
+      if (cloudUserBanks && Object.keys(cloudUserBanks).length > 0) {
+        setUserBanks(cloudUserBanks as Record<string, BankAccountDetails>);
+        saveToStorage(STORAGE_KEYS.USER_BANKS, cloudUserBanks);
+      }
+    });
+
     return () => {
       unsubClients();
       unsubProjects();
@@ -306,6 +332,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubAudit();
       unsubTeam();
       unsubBank();
+      unsubUserBanks();
     };
   }, []);
 
@@ -927,10 +954,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       postIts,
       team,
       studioBank,
+      userBanks,
       auditLogs,
     };
     return JSON.stringify(bundle, null, 2);
-  }, [currentUser, clients, projects, budgets, postIts, team, studioBank, auditLogs]);
+  }, [currentUser, clients, projects, budgets, postIts, team, studioBank, userBanks, auditLogs]);
 
   const importDataJSON = useCallback((jsonString: string): boolean => {
     try {
@@ -953,6 +981,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (data.studioBank) {
         FirestoreService.saveStudioBank(data.studioBank);
       }
+      if (data.userBanks) {
+        FirestoreService.saveUserBanks(data.userBanks);
+      }
       if (Array.isArray(data.auditLogs)) {
         data.auditLogs.forEach((log: AuditLogItem) => FirestoreService.saveAuditLog(log));
       }
@@ -970,6 +1001,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     postIts.forEach(post => FirestoreService.deletePostIt(post.id));
     DEFAULT_TEAM.forEach(t => FirestoreService.saveTeamMember(t));
     FirestoreService.saveStudioBank(DEFAULT_STUDIO_BANK);
+    FirestoreService.saveUserBanks(DEFAULT_USER_BANKS);
   }, [clients, projects, budgets, postIts]);
 
   return (
@@ -1019,6 +1051,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleDarkMode,
         studioBank,
         updateStudioBank,
+        userBanks,
+        updateUserBank,
         exportDataJSON,
         importDataJSON,
         resetToSampleData,

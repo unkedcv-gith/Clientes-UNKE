@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useStudio } from '../context/StudioContext';
+import { BankAccountDetails } from '../types';
 import {
-  Database,
+  Settings,
   Download,
   Upload,
   RefreshCw,
@@ -9,25 +10,29 @@ import {
   Check,
   X,
   ShieldCheck,
-  HardDrive,
   FolderKanban,
   FileText,
   Users,
   StickyNote,
+  User,
+  Building,
 } from 'lucide-react';
 
-interface BackupModalProps {
+interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => {
+export const BackupModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const {
     exportDataJSON,
     importDataJSON,
     resetToSampleData,
     studioBank,
     updateStudioBank,
+    userBanks,
+    updateUserBank,
+    team,
     clients,
     projects,
     budgets,
@@ -36,13 +41,48 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
 
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
-  // Bank Form State
-  const [bankName, setBankName] = useState(studioBank.bank);
-  const [accountHolder, setAccountHolder] = useState(studioBank.accountHolder);
-  const [cbu, setCbu] = useState(studioBank.cbu);
-  const [alias, setAlias] = useState(studioBank.alias);
-  const [cuit, setCuit] = useState(studioBank.cuit);
+  // Selected Bank Tab in Settings: 'studio' | member_id (nacho, fede, willy)
+  const [selectedBankTab, setSelectedBankTab] = useState<string>('studio');
+
+  // Form states for the selected bank tab
+  const activeBankData: BankAccountDetails =
+    selectedBankTab === 'studio'
+      ? studioBank
+      : userBanks[selectedBankTab] || {
+          bank: '',
+          accountHolder: '',
+          cbu: '',
+          alias: '',
+          cuit: '',
+        };
+
+  const [bankName, setBankName] = useState(activeBankData.bank || '');
+  const [accountHolder, setAccountHolder] = useState(activeBankData.accountHolder || '');
+  const [cbu, setCbu] = useState(activeBankData.cbu || '');
+  const [alias, setAlias] = useState(activeBankData.alias || '');
+  const [cuit, setCuit] = useState(activeBankData.cuit || '');
   const [bankSavedMessage, setBankSavedMessage] = useState(false);
+
+  // Switch form values when changing tab
+  const handleTabChange = (tabId: string) => {
+    setSelectedBankTab(tabId);
+    const data =
+      tabId === 'studio'
+        ? studioBank
+        : userBanks[tabId] || {
+            bank: '',
+            accountHolder: '',
+            cbu: '',
+            alias: '',
+            cuit: '',
+          };
+    setBankName(data.bank || '');
+    setAccountHolder(data.accountHolder || '');
+    setCbu(data.cbu || '');
+    setAlias(data.alias || '');
+    setCuit(data.cuit || '');
+    setBankSavedMessage(false);
+  };
 
   if (!isOpen) return null;
 
@@ -78,13 +118,20 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
 
   const handleSaveBank = (e: React.FormEvent) => {
     e.preventDefault();
-    updateStudioBank({
-      bank: bankName,
-      accountHolder,
-      cbu,
-      alias,
-      cuit,
-    });
+    const updatedDetails: BankAccountDetails = {
+      bank: bankName.trim(),
+      accountHolder: accountHolder.trim(),
+      cbu: cbu.trim(),
+      alias: alias.trim(),
+      cuit: cuit.trim(),
+    };
+
+    if (selectedBankTab === 'studio') {
+      updateStudioBank(updatedDetails);
+    } else {
+      updateUserBank(selectedBankTab, updatedDetails);
+    }
+
     setBankSavedMessage(true);
     setTimeout(() => setBankSavedMessage(false), 3000);
   };
@@ -107,14 +154,14 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
         <div className="flex items-center justify-between border-b border-[#777777]/20 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
-              <Database className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                Almacenamiento & Respaldo de Datos
+                Configuración del Estudio
               </h2>
               <p className="text-xs text-[#888888]">
-                Guardado automático permanente y exportación segura
+                Cuentas bancarias para presupuestos & copia de seguridad
               </p>
             </div>
           </div>
@@ -126,46 +173,156 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
           </button>
         </div>
 
-        {/* Persistence Status Badge */}
+        {/* Realtime Cloud Sync Status */}
         <div className="p-3 bg-[#141414] rounded-xl border border-emerald-500/30 flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-xs">
-            <span className="font-bold text-white block">Guardado Automático Activo</span>
+            <span className="font-bold text-white block">Sincronización en la Nube Activa</span>
             <span className="text-[#888888]">
-              Cada cliente, proyecto, presupuesto, cobro y nota se guarda inmediatamente en el almacenamiento local de tu navegador y se sincroniza en tiempo real.
+              Los cambios en clientes, proyectos y cuentas bancarias se sincronizan automáticamente en tiempo real entre todos los integrantes del equipo.
             </span>
           </div>
         </div>
 
-        {/* Storage Stats */}
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-[#141414] p-2.5 rounded-xl border border-[#777777]/20 text-center">
-            <FolderKanban className="w-4 h-4 text-[#34877c] mx-auto mb-1" />
-            <div className="text-sm font-bold text-white">{projects.length}</div>
-            <div className="text-[10px] text-[#777777]">Proyectos</div>
+        {/* Bank Accounts Settings: 3 Members + Studio General */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <CreditCard className="w-4 h-4 text-[#34877c]" />
+              <span>Cuentas Bancarias para Presupuestos</span>
+            </h3>
+            {bankSavedMessage && (
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>Guardado con éxito</span>
+              </span>
+            )}
           </div>
-          <div className="bg-[#141414] p-2.5 rounded-xl border border-[#777777]/20 text-center">
-            <FileText className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-            <div className="text-sm font-bold text-white">{budgets.length}</div>
-            <div className="text-[10px] text-[#777777]">Presupuestos</div>
+          <p className="text-xs text-[#888888]">
+            Configurá los datos bancarios de cada integrante. Al emitir un presupuesto podés elegir qué cuenta bancaria incluir automáticamente.
+          </p>
+
+          {/* Member Tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-[#141414] rounded-xl border border-[#777777]/25">
+            <button
+              type="button"
+              onClick={() => handleTabChange('studio')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                selectedBankTab === 'studio'
+                  ? 'bg-[#34877c] text-white shadow-sm'
+                  : 'text-[#888888] hover:text-white hover:bg-[#222222]'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5" />
+              <span className="truncate">UNKE Oficial</span>
+            </button>
+
+            {team.map(member => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => handleTabChange(member.id)}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  selectedBankTab === member.id
+                    ? 'bg-[#34877c] text-white shadow-sm'
+                    : 'text-[#888888] hover:text-white hover:bg-[#222222]'
+                }`}
+              >
+                <div
+                  style={{ backgroundColor: member.avatarColor }}
+                  className="w-4 h-4 rounded-full text-[9px] font-black text-white flex items-center justify-center shrink-0"
+                >
+                  {member.initials}
+                </div>
+                <span className="truncate">{member.name.split(' ')[0]}</span>
+              </button>
+            ))}
           </div>
-          <div className="bg-[#141414] p-2.5 rounded-xl border border-[#777777]/20 text-center">
-            <Users className="w-4 h-4 text-sky-400 mx-auto mb-1" />
-            <div className="text-sm font-bold text-white">{clients.length}</div>
-            <div className="text-[10px] text-[#777777]">Clientes</div>
-          </div>
-          <div className="bg-[#141414] p-2.5 rounded-xl border border-[#777777]/20 text-center">
-            <StickyNote className="w-4 h-4 text-amber-400 mx-auto mb-1" />
-            <div className="text-sm font-bold text-white">{postIts.length}</div>
-            <div className="text-[10px] text-[#777777]">Notas</div>
-          </div>
+
+          {/* Bank Form for active tab */}
+          <form onSubmit={handleSaveBank} className="space-y-3 p-3.5 bg-[#141414] rounded-xl border border-[#777777]/20">
+            <div className="flex items-center gap-2 pb-1 border-b border-[#777777]/15">
+              <span className="text-[11px] font-bold text-[#34877c] uppercase">
+                {selectedBankTab === 'studio'
+                  ? 'Cuenta Oficial del Estudio'
+                  : `Cuenta Personal de ${team.find(m => m.id === selectedBankTab)?.name || 'Integrante'}`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div>
+                <label className="block text-slate-300 mb-1">Banco / Billetera</label>
+                <input
+                  type="text"
+                  placeholder="ej. Banco Santander, Galicia, MP..."
+                  value={bankName}
+                  onChange={e => setBankName(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-[#1e1e1e] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 mb-1">Titular de la Cuenta</label>
+                <input
+                  type="text"
+                  placeholder="Nombre y Apellido o Razón Social"
+                  value={accountHolder}
+                  onChange={e => setAccountHolder(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-[#1e1e1e] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 mb-1">CUIT / CUIL / DNI</label>
+                <input
+                  type="text"
+                  placeholder="20-xxxxxxxx-x"
+                  value={cuit}
+                  onChange={e => setCuit(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-[#1e1e1e] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 mb-1">ALIAS</label>
+                <input
+                  type="text"
+                  placeholder="ej. NOMBRE.UNKE.DCV"
+                  value={alias}
+                  onChange={e => setAlias(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-[#1e1e1e] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
+                />
+              </div>
+
+              <div className="col-span-full">
+                <label className="block text-slate-300 mb-1">CBU / CVU (22 dígitos)</label>
+                <input
+                  type="text"
+                  placeholder="0000000000000000000000"
+                  value={cbu}
+                  onChange={e => setCbu(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-[#1e1e1e] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              Guardar Datos de{' '}
+              {selectedBankTab === 'studio'
+                ? 'UNKE Oficial'
+                : team.find(m => m.id === selectedBankTab)?.name.split(' ')[0] || 'esta cuenta'}
+            </button>
+          </form>
         </div>
 
         {/* Backup / Export Section */}
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 pt-2 border-t border-[#777777]/20">
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-              Copias de Seguridad (Descargar / Restaurar)
+              Copias de Seguridad (Backup)
             </h3>
             <p className="text-xs text-[#888888]">
               Podés descargar un archivo <code className="text-[#34877c]">.json</code> de respaldo con todos los datos para tener una copia externa en Google Drive o tu computadora.
@@ -178,12 +335,12 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
               className="flex items-center justify-center gap-2 p-2.5 bg-[#141414] hover:bg-[#272727] border border-[#777777]/30 hover:border-[#34877c] rounded-xl text-xs font-bold text-white transition-all shadow-xs cursor-pointer"
             >
               <Download className="w-4 h-4 text-[#34877c]" />
-              <span>Exportar Backup</span>
+              <span>Descargar Backup (.json)</span>
             </button>
 
             <label className="flex items-center justify-center gap-2 p-2.5 bg-[#141414] hover:bg-[#272727] border border-[#777777]/30 hover:border-emerald-500 rounded-xl text-xs font-bold text-white cursor-pointer transition-all shadow-xs">
               <Upload className="w-4 h-4 text-emerald-400" />
-              <span>Importar Backup</span>
+              <span>Restaurar Backup</span>
               <input
                 type="file"
                 accept=".json"
@@ -199,81 +356,6 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
             </p>
           )}
         </div>
-
-        {/* Bank Account Settings for Invoicing */}
-        <form onSubmit={handleSaveBank} className="space-y-3 pt-3 border-t border-[#777777]/20">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-[#34877c]" />
-              <span>Datos Bancarios para Presupuestos</span>
-            </h3>
-            {bankSavedMessage && (
-              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" />
-                <span>Guardado</span>
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-            <div>
-              <label className="block text-slate-300 mb-1">Banco</label>
-              <input
-                type="text"
-                value={bankName}
-                onChange={e => setBankName(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-300 mb-1">Titular</label>
-              <input
-                type="text"
-                value={accountHolder}
-                onChange={e => setAccountHolder(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-300 mb-1">CUIT / CUIL</label>
-              <input
-                type="text"
-                value={cuit}
-                onChange={e => setCuit(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-300 mb-1">ALIAS</label>
-              <input
-                type="text"
-                value={alias}
-                onChange={e => setAlias(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-              />
-            </div>
-
-            <div className="col-span-full">
-              <label className="block text-slate-300 mb-1">CBU</label>
-              <input
-                type="text"
-                value={cbu}
-                onChange={e => setCbu(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            Actualizar Datos Bancarios
-          </button>
-        </form>
 
         {/* Reset & Close */}
         <div className="pt-2 border-t border-[#777777]/20 flex items-center justify-between text-xs">

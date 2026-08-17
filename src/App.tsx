@@ -10,7 +10,7 @@ import { CalendarView } from './components/CalendarView';
 import { TeamLoginModal } from './components/TeamLoginModal';
 import { BackupModal } from './components/BackupModal';
 import { LoginScreen } from './components/LoginScreen';
-import { X, Volume2, Users, Database } from 'lucide-react';
+import { X, Volume2, Users, Settings } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const {
@@ -108,14 +108,14 @@ const MainAppContent: React.FC = () => {
               Valores en ARS ($)
             </div>
             <span>•</span>
-            {/* Subtle Backup & Restore button */}
+            {/* Subtle Settings & Backup button */}
             <button
               onClick={() => setIsBackupModalOpen(true)}
               className="text-[11px] text-[#777777] hover:text-[#34877c] transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Descargar copia de seguridad o restaurar datos"
+              title="Configuración de cuentas bancarias y copia de seguridad"
             >
-              <Database className="w-3.5 h-3.5 opacity-75" />
-              <span>Backup</span>
+              <Settings className="w-3.5 h-3.5 opacity-75" />
+              <span>Configuración</span>
             </button>
           </div>
         </div>

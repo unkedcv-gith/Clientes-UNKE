@@ -127,6 +127,18 @@ export const FirestoreService = {
     );
   },
 
+  subscribeUserBanks(callback: (userBanks: Record<string, any>) => void) {
+    return onSnapshot(
+      doc(db, SETTINGS_COLLECTION, 'user_banks'),
+      snapshot => {
+        if (snapshot.exists()) {
+          callback(snapshot.data());
+        }
+      },
+      error => console.error('Error in user banks snapshot:', error)
+    );
+  },
+
   // --- WRITE OPERATIONS ---
 
   async saveClient(client: Client) {
@@ -214,6 +226,14 @@ export const FirestoreService = {
       await setDoc(doc(db, SETTINGS_COLLECTION, 'bank_details'), bank);
     } catch (err) {
       console.error('Error saving bank details to Firestore:', err);
+    }
+  },
+
+  async saveUserBanks(userBanks: Record<string, any>) {
+    try {
+      await setDoc(doc(db, SETTINGS_COLLECTION, 'user_banks'), userBanks);
+    } catch (err) {
+      console.error('Error saving user banks to Firestore:', err);
     }
   },
 

@@ -1,3 +1,15 @@
+export interface BankAccountDetails {
+  bank: string;
+  accountHolder: string;
+  cbu: string;
+  alias: string;
+  cuit: string;
+}
+
+export interface UserBankAccounts {
+  [memberId: string]: BankAccountDetails;
+}
+
 export type ProjectType = 'proyecto' | 'mantenimiento';
 
 export type ProjectStatus =
@@ -116,13 +128,8 @@ export interface Budget {
   totalAmount: number;
   notesAndTerms: string;
   status: BudgetStatus;
-  bankDetails: {
-    bank: string;
-    accountHolder: string;
-    cbu: string;
-    alias: string;
-    cuit: string;
-  };
+  selectedMemberBankId?: string; // e.g. member_nacho, member_fede, member_willy
+  bankDetails: BankAccountDetails;
   convertedToProjectId?: string;
   createdBy: string;
   createdAt: string;

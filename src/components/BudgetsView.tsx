@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStudio } from '../context/StudioContext';
-import { Budget, BudgetItem, BudgetStatus, ProjectType } from '../types';
+import { BankAccountDetails, Budget, BudgetItem, BudgetStatus, ProjectType } from '../types';
 import { formatARS, formatDateAR, generateId, parseARS } from '../utils/currency';
 import { generateBudgetPDF } from '../utils/pdfGenerator';
 import { BudgetPrintModal } from './BudgetPrintModal';
@@ -23,6 +23,9 @@ import {
   Sparkles,
   X,
   PlusCircle,
+  CreditCard,
+  Building,
+  User,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -36,7 +39,9 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     clients,
     addClient,
     currentUser,
+    team,
     studioBank,
+    userBanks,
     addBudget,
     updateBudget,
     deleteBudget,
@@ -72,6 +77,9 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     'Forma de pago: 50% anticipo al confirmar y 50% contra entrega final de archivos originales. Validez del presupuesto: 15 días.'
   );
 
+  // Selected Bank Account in Budget Form ('studio' | member_id)
+  const [formSelectedBankId, setFormSelectedBankId] = useState<string>('studio');
+
   const [formItems, setFormItems] = useState<BudgetItem[]>([
     {
       id: generateId('bi'),
@@ -101,6 +109,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     setFormNotes(
       'Forma de pago: 50% anticipo al iniciar y 50% contra entrega de archivos finales. Incluye 2 rondas de ajustes.'
     );
+    // Default bank selector to current user or studio
+    setFormSelectedBankId(currentUser?.id || 'studio');
     setFormItems([
       {
         id: generateId('bi'),
@@ -127,6 +137,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     setFormDiscount(budget.discountPercentage || 0);
     setFormDeliverablesClarification(budget.deliverablesClarification || '');
     setFormNotes(budget.notesAndTerms);
+    setFormSelectedBankId(budget.selectedMemberBankId || 'studio');
     setFormItems(budget.items);
     setIsFormModalOpen(true);
   };
@@ -179,6 +190,14 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   const calculatedDiscountAmount = (calculatedSubtotal * (Number(formDiscount) || 0)) / 100;
   const calculatedTotal = Math.max(0, calculatedSubtotal - calculatedDiscountAmount);
 
+  // Helper to resolve chosen bank details
+  const getSelectedBankDetails = (bankId: string): BankAccountDetails => {
+    if (bankId === 'studio') {
+      return studioBank;
+    }
+    return userBanks[bankId] || studioBank;
+  };
+
   const handleSaveBudget = (e: React.FormEvent) => {
     e.preventDefault();
     let effectiveClientId = formClientId;
@@ -201,6 +220,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
       effectiveClientName = client ? client.name : formNewClientName.trim() || 'Cliente';
     }
 
+    const resolvedBankDetails = getSelectedBankDetails(formSelectedBankId);
+
     if (editingBudget) {
       updateBudget(editingBudget.id, {
         title: formTitle,
@@ -217,6 +238,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         totalAmount: calculatedTotal,
         notesAndTerms: formNotes,
         status: formStatus,
+        selectedMemberBankId: formSelectedBankId,
+        bankDetails: resolvedBankDetails,
       });
     } else {
       addBudget({
@@ -234,7 +257,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         totalAmount: calculatedTotal,
         notesAndTerms: formNotes,
         status: formStatus,
-        bankDetails: studioBank,
+        selectedMemberBankId: formSelectedBankId,
+        bankDetails: resolvedBankDetails,
       });
     }
     handleCloseFormModal();
@@ -252,249 +276,303 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     }
   };
 
-  const filteredBudgets = budgets.filter(b => {
-    const matchSearch =
-      b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.number.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-    const matchType = typeFilter === 'all' || b.projectType === typeFilter;
-    return matchSearch && matchStatus && matchType;
-  });
+  // Filter and search
+  const filteredBudgets = budgets
+    .filter(budget => {
+      const matchSearch =
+        budget.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        budget.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        budget.number.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchStatus = statusFilter === 'all' || budget.status === statusFilter;
+      const matchType = typeFilter === 'all' || budget.projectType === typeFilter;
+
+      return matchSearch && matchStatus && matchType;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Metrics
+  const totalBudgetsCount = budgets.length;
+  const approvedBudgets = budgets.filter(b => b.status === 'aprobado');
+  const totalApprovedAmount = approvedBudgets.reduce((sum, b) => sum + b.totalAmount, 0);
+  const conversionRate =
+    totalBudgetsCount > 0
+      ? Math.round((approvedBudgets.length / totalBudgetsCount) * 100)
+      : 0;
 
   return (
-    <div className="space-y-6 pb-12 text-white">
-      {/* Top Header */}
+    <div className="space-y-6">
+      {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <FileText className="w-6 h-6 text-[#34877c]" />
-            <span>Presupuestos & Propuestas Comerciales</span>
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            <span>Presupuestos Comerciales</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#34877c]/20 text-[#34877c] border border-[#34877c]/30 font-semibold">
+              {budgets.length}
+            </span>
           </h1>
-          <p className="text-xs text-[#888888]">
-            Armado de cotizaciones en ARS, exportación instantánea en PDF y conversión directa a proyecto activo.
+          <p className="text-xs text-[#888888] mt-1">
+            Cotizaciones oficiales en ARS, datos bancarios por integrante y descarga directa en PDF
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center gap-2 bg-[#34877c] hover:bg-[#2a6d63] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Nuevo Presupuesto</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuevo Presupuesto</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Metrics Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-[#1a1a1a] p-4 rounded-2xl border border-[#777777]/20 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-[#888888]">Presupuestos Emitidos</div>
+            <div className="text-xl font-bold text-white mt-0.5">{totalBudgetsCount}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#34877c]/10 text-[#34877c] flex items-center justify-center font-bold">
+            <FileText className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-[#1a1a1a] p-4 rounded-2xl border border-[#777777]/20 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-[#888888]">Presupuestos Aprobados</div>
+            <div className="text-xl font-bold text-emerald-400 mt-0.5">
+              {approvedBudgets.length}
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-[#1a1a1a] p-4 rounded-2xl border border-[#777777]/20 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-[#888888]">Tasa de Aprobación</div>
+            <div className="text-xl font-bold text-[#34877c] mt-0.5 font-mono">
+              {conversionRate}%
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#34877c]/10 text-[#34877c] flex items-center justify-center font-bold">
+            <Sparkles className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-[#202020] p-3.5 sm:p-4 rounded-2xl border border-[#777777]/20 shadow-lg flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#777777]" />
+      <div className="bg-[#1a1a1a] p-3 rounded-2xl border border-[#777777]/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-[#777777] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            placeholder="Buscar por cliente, título o número..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, título o Nº de presupuesto..."
-            className="w-full pl-9 pr-4 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-white placeholder-[#777777] outline-none focus:border-[#34877c] transition-colors"
+            className="w-full pl-9 pr-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-xs text-white placeholder-[#777777] outline-none focus:border-[#34877c]"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as 'all' | BudgetStatus)}
-            className="px-3 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-slate-200 outline-none focus:border-[#34877c]"
+            onChange={e => setStatusFilter(e.target.value as any)}
+            className="w-full sm:w-auto px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-xs text-[#aaaaaa] outline-none focus:border-[#34877c]"
           >
-            <option value="all">Todos los Estados</option>
+            <option value="all">Todos los estados</option>
             <option value="borrador">Borrador</option>
             <option value="enviado">Enviado</option>
             <option value="aprobado">Aprobado</option>
             <option value="rechazado">Rechazado</option>
           </select>
 
+          {/* Type Filter */}
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as 'all' | ProjectType)}
-            className="px-3 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-slate-200 outline-none focus:border-[#34877c]"
+            onChange={e => setTypeFilter(e.target.value as any)}
+            className="w-full sm:w-auto px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-xs text-[#aaaaaa] outline-none focus:border-[#34877c]"
           >
-            <option value="all">Todos los Tipos</option>
-            <option value="proyecto">📦 Proyecto Puntual</option>
-            <option value="mantenimiento">🔄 Abono Mensual</option>
+            <option value="all">Todas las modalidades</option>
+            <option value="proyecto">Proyecto Puntual</option>
+            <option value="mantenimiento">Abono Mensual</option>
           </select>
         </div>
       </div>
 
       {/* Budgets List */}
-      <div className="space-y-4">
-        {filteredBudgets.length === 0 ? (
-          <div className="bg-[#202020] border border-[#777777]/20 rounded-2xl p-12 text-center text-[#777777] shadow-lg">
-            <FileText className="w-10 h-10 mx-auto mb-2 opacity-40 text-[#555555]" />
-            <p className="text-sm font-medium text-[#888888]">No se encontraron presupuestos.</p>
+      {filteredBudgets.length === 0 ? (
+        <div className="bg-[#1a1a1a] rounded-2xl border border-[#777777]/20 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-[#141414] text-[#777777] flex items-center justify-center mx-auto">
+            <FileText className="w-6 h-6" />
           </div>
-        ) : (
-          filteredBudgets.map(budget => (
+          <div className="text-sm font-bold text-white">No se encontraron presupuestos</div>
+          <p className="text-xs text-[#777777] max-w-sm mx-auto">
+            {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+              ? 'Probá ajustando los filtros o el término de búsqueda.'
+              : 'Creá la primera cotización para un cliente existente o nuevo.'}
+          </p>
+          <button
+            onClick={handleOpenCreate}
+            className="px-4 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            + Crear Presupuesto
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredBudgets.map(budget => (
             <div
               key={budget.id}
-              className="bg-[#202020] rounded-2xl border border-[#777777]/20 p-5 sm:p-6 shadow-lg hover:border-[#34877c]/60 transition-all space-y-3"
+              className="bg-[#1a1a1a] p-4 sm:p-5 rounded-2xl border border-[#777777]/20 hover:border-[#34877c]/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-[#888888]">
-                      {budget.number}
+              {/* Info Column */}
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-[#34877c] bg-[#34877c]/10 px-2 py-0.5 rounded-md">
+                    {budget.number}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      budget.status === 'aprobado'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : budget.status === 'enviado'
+                        ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                        : budget.status === 'borrador'
+                        ? 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+                        : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                    }`}
+                  >
+                    {budget.status}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      budget.projectType === 'mantenimiento'
+                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}
+                  >
+                    {budget.projectType === 'mantenimiento' ? 'Abono Mensual' : 'Proyecto'}
+                  </span>
+
+                  {/* Bank Account indicator */}
+                  {budget.bankDetails && (
+                    <span className="text-[10px] text-[#888888] bg-[#141414] px-2 py-0.5 rounded-md border border-[#777777]/20 flex items-center gap-1">
+                      <CreditCard className="w-3 h-3 text-[#34877c]" />
+                      <span>{budget.bankDetails.bank || 'Cta. Bancaria'} ({budget.bankDetails.accountHolder?.split(' ')[0] || 'UNKE'})</span>
                     </span>
-
-                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-[#34877c]/15 text-[#34877c] border border-[#34877c]/30">
-                      {budget.clientName}
-                    </span>
-
-                    {budget.projectType === 'mantenimiento' ? (
-                      <span className="text-[10px] uppercase font-bold text-sky-300 bg-sky-950/60 border border-sky-800 px-2 py-0.5 rounded-lg">
-                        Abono Mensual
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-[#aaaaaa] bg-[#141414] border border-[#777777]/20 px-2 py-0.5 rounded-lg">
-                        Puntual
-                      </span>
-                    )}
-
-                    <span
-                      className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                        budget.status === 'aprobado'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                          : budget.status === 'enviado'
-                          ? 'bg-blue-950 text-blue-300 border border-blue-700'
-                          : budget.status === 'rechazado'
-                          ? 'bg-rose-950 text-rose-300 border border-rose-700'
-                          : 'bg-[#141414] text-slate-300 border border-[#777777]/30'
-                      }`}
-                    >
-                      {budget.status}
-                    </span>
-                  </div>
-
-                  <h2 className="text-lg font-bold text-white tracking-tight">
-                    {budget.title}
-                  </h2>
-
-                  <div className="text-xs text-[#888888] flex items-center gap-3">
-                    <span>Emisión: {formatDateAR(budget.date)}</span>
-                    <span>•</span>
-                    <span>Vencimiento: {formatDateAR(budget.validUntilDate)}</span>
-                  </div>
+                  )}
                 </div>
 
-                {/* Price and Actions */}
-                <div className="flex flex-col sm:items-end gap-2">
-                  <div className="text-xl font-black text-white font-mono">
-                    {formatARS(budget.totalAmount)}
-                    {budget.projectType === 'mantenimiento' && (
-                      <span className="text-xs text-sky-400 font-normal ml-1">/mes</span>
-                    )}
-                  </div>
+                <div className="text-sm font-bold text-white group-hover:text-[#34877c] transition-colors truncate">
+                  {budget.title}
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Convert to Project Action */}
-                    {!budget.convertedToProjectId && budget.status !== 'aprobado' && (
-                      <button
-                        onClick={() => handleConvertToProject(budget.id)}
-                        className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/25 transition-all cursor-pointer"
-                        title="Aprobar presupuesto y crear proyecto activo de trabajo automáticamente"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Aprobar & Crear Proyecto</span>
-                      </button>
-                    )}
-
-                    {budget.convertedToProjectId && (
-                      <span className="text-[11px] text-emerald-400 font-bold px-2.5 py-1 bg-emerald-950/40 border border-emerald-800 rounded-xl">
-                        ✓ En ejecución activa
-                      </span>
-                    )}
-
-                    {/* PDF Generator Button */}
-                    <button
-                      onClick={() => generateBudgetPDF(budget)}
-                      className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-[#34877c]/20 hover:bg-[#34877c]/35 text-[#44a598] border border-[#34877c]/40 rounded-xl transition-all cursor-pointer"
-                      title="Descargar presupuesto oficial en PDF con estética UNKE"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>PDF</span>
-                    </button>
-
-                    {/* View / Print Preview */}
-                    <button
-                      onClick={() => setPreviewBudget(budget)}
-                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
-                      title="Ver vista previa de impresión"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Duplicate */}
-                    <button
-                      onClick={() => duplicateBudget(budget.id)}
-                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
-                      title="Duplicar presupuesto"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Edit */}
-                    <button
-                      onClick={() => handleOpenEdit(budget)}
-                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar presupuesto ${budget.number}?`)) {
-                          deleteBudget(budget.id);
-                        }
-                      }}
-                      className="p-1.5 bg-[#141414] hover:bg-rose-950/40 text-[#777777] hover:text-rose-400 border border-[#777777]/20 rounded-xl transition-colors cursor-pointer"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                <div className="text-xs text-[#888888] flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-300">
+                    Cliente: <strong>{budget.clientName}</strong>
+                  </span>
+                  <span>•</span>
+                  <span>Emisión: {formatDateAR(budget.date)}</span>
+                  <span>•</span>
+                  <span>Vencimiento: {formatDateAR(budget.validUntilDate)}</span>
                 </div>
               </div>
 
-              {/* Items summary */}
-              <div className="pt-2.5 border-t border-[#777777]/15 text-xs text-slate-300 space-y-2">
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#aaaaaa]">
-                  {budget.items.map((item, idx) => (
-                    <span key={item.id || idx}>
-                      • {item.description} ({formatARS(item.total)})
-                    </span>
-                  ))}
+              {/* Price and Actions */}
+              <div className="flex flex-col sm:items-end gap-2">
+                <div className="text-xl font-black text-white font-mono">
+                  {formatARS(budget.totalAmount)}
+                  {budget.projectType === 'mantenimiento' && (
+                    <span className="text-xs text-sky-400 font-normal ml-1">/mes</span>
+                  )}
                 </div>
 
-                {budget.deliverablesClarification && (
-                  <div className="bg-[#141414] rounded-xl p-3 border border-[#777777]/20 mt-2 text-xs">
-                    <div className="font-bold text-[10px] uppercase tracking-wider text-[#34877c] mb-1">
-                      Aclaraciones & Alcance:
-                    </div>
-                    <FormattedClarificationText text={budget.deliverablesClarification} />
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Convert to Project Action */}
+                  {!budget.convertedToProjectId && budget.status !== 'aprobado' && (
+                    <button
+                      onClick={() => handleConvertToProject(budget.id)}
+                      className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/25 transition-all cursor-pointer"
+                      title="Aprobar presupuesto y crear proyecto activo de trabajo automáticamente"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Aprobar & Crear Proyecto</span>
+                    </button>
+                  )}
+
+                  {budget.convertedToProjectId && (
+                    <span className="text-[11px] text-emerald-400 font-bold px-2.5 py-1 bg-emerald-950/40 border border-emerald-800 rounded-xl">
+                      ✓ En ejecución activa
+                    </span>
+                  )}
+
+                  {/* PDF Generator Button */}
+                  <button
+                    onClick={() => generateBudgetPDF(budget)}
+                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-[#34877c]/20 hover:bg-[#34877c]/35 text-[#44a598] border border-[#34877c]/40 rounded-xl transition-all cursor-pointer"
+                    title="Descargar presupuesto oficial en PDF con estética UNKE"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>PDF</span>
+                  </button>
+
+                  {/* View / Print Preview */}
+                  <button
+                    onClick={() => setPreviewBudget(budget)}
+                    className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
+                    title="Ver vista previa de impresión"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Duplicate */}
+                  <button
+                    onClick={() => duplicateBudget(budget.id)}
+                    className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
+                    title="Duplicar presupuesto"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Edit */}
+                  <button
+                    onClick={() => handleOpenEdit(budget)}
+                    className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
+                    title="Editar"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Delete */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`¿Eliminar el presupuesto ${budget.number}?`)) {
+                        deleteBudget(budget.id);
+                      }
+                    }}
+                    className="p-1.5 bg-[#141414] hover:bg-rose-950/40 text-[#aaaaaa] hover:text-rose-400 border border-[#777777]/25 hover:border-rose-800 rounded-xl transition-colors cursor-pointer"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Modal: Create / Edit Budget (Landscape / Wide 2-Column layout) */}
+      {/* CREATE / EDIT BUDGET MODAL */}
       {isFormModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl max-w-5xl lg:max-w-6xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-[#777777]/20 my-auto max-h-[94vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#777777]/20 pb-3 mb-4 shrink-0">
-              <div className="flex items-center gap-3">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl max-w-5xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 dark:border-[#777777]/20 my-auto max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#777777]/20 pb-3 mb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
                   <FileText className="w-4 h-4" />
                 </div>
@@ -526,7 +604,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
               {/* Wide 2-Column Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
                 
-                {/* Column 1 (Left - 5 Cols on Desktop): General Proposal Details & Terms */}
+                {/* Column 1 (Left - 5 Cols on Desktop): General Proposal Details, Bank & Terms */}
                 <div className="lg:col-span-5 space-y-3.5">
                   {/* Type selection */}
                   <div>
@@ -598,9 +676,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                           const cId = e.target.value;
                           setFormClientId(cId);
                           const sel = clients.find(c => c.id === cId);
-                          if (sel) setFormClientContact(sel.email || '');
+                          if (sel?.email) setFormClientContact(sel.email);
                         }}
-                        required
                         className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
                       >
                         {clients.map(c => (
@@ -608,7 +685,6 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                             {c.name} {c.company ? `(${c.company})` : ''}
                           </option>
                         ))}
-                        <option value="new">+ Crear nuevo cliente...</option>
                       </select>
                     )}
                   </div>
@@ -616,16 +692,82 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                   {/* Proposal Title */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Título de la Propuesta *
+                      Título / Asunto de la propuesta *
                     </label>
                     <input
                       type="text"
                       value={formTitle}
                       onChange={e => setFormTitle(e.target.value)}
-                      placeholder="Ej. Rediseño Web & Branding Institucional"
+                      placeholder="ej. Rediseño de Identidad & Arquitectura Web"
                       required
                       className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
                     />
+                  </div>
+
+                  {/* Bank Account Selection for this budget */}
+                  <div className="p-3 bg-slate-50 dark:bg-[#141414] rounded-xl border border-slate-200 dark:border-[#777777]/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-[#34877c]" />
+                        <span>Datos Bancarios a Incluir</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 dark:text-[#888888]">
+                        Aparecerá en el PDF
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormSelectedBankId('studio')}
+                        className={`flex items-center gap-1.5 p-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          formSelectedBankId === 'studio'
+                            ? 'border-[#34877c] bg-[#34877c]/15 text-[#34877c] dark:text-teal-200 ring-1 ring-[#34877c]'
+                            : 'border-slate-200 dark:border-[#777777]/20 text-slate-600 dark:text-[#888888] hover:bg-slate-100 dark:hover:bg-[#202020]'
+                        }`}
+                      >
+                        <Building className="w-3.5 h-3.5 shrink-0 text-[#34877c]" />
+                        <span className="truncate">UNKE Oficial</span>
+                      </button>
+
+                      {team.map(member => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => setFormSelectedBankId(member.id)}
+                          className={`flex items-center gap-1.5 p-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            formSelectedBankId === member.id
+                              ? 'border-[#34877c] bg-[#34877c]/15 text-[#34877c] dark:text-teal-200 ring-1 ring-[#34877c]'
+                              : 'border-slate-200 dark:border-[#777777]/20 text-slate-600 dark:text-[#888888] hover:bg-slate-100 dark:hover:bg-[#202020]'
+                          }`}
+                        >
+                          <div
+                            style={{ backgroundColor: member.avatarColor }}
+                            className="w-4 h-4 rounded-full text-[9px] font-black text-white flex items-center justify-center shrink-0"
+                          >
+                            {member.initials}
+                          </div>
+                          <span className="truncate">{member.name.split(' ')[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Preview of active selected bank */}
+                    <div className="text-[11px] text-slate-500 dark:text-[#888888] bg-white dark:bg-[#1a1a1a] p-2 rounded-lg border border-slate-200 dark:border-[#777777]/20">
+                      {(() => {
+                        const bank = getSelectedBankDetails(formSelectedBankId);
+                        return (
+                          <div className="space-y-0.5">
+                            <p>
+                              <strong className="text-slate-700 dark:text-slate-200">{bank.bank || 'Sin banco'}</strong> • {bank.accountHolder}
+                            </p>
+                            <p className="font-mono text-[10px]">
+                              Alias: <span className="text-[#34877c] font-bold">{bank.alias || '-'}</span> | CBU: {bank.cbu || '-'}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   {/* Dates & Status Grid */}
@@ -741,90 +883,97 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                               onChange={e =>
                                 handleItemChange(item.id, 'quantity', e.target.value)
                               }
-                              placeholder="Cant."
-                              className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200 text-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                              className="w-full text-xs px-2 py-1.5 text-center bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200"
                             />
                           </div>
 
                           <div className="col-span-3">
                             <input
-                              type="text"
-                              value={item.unitPrice}
+                              type="number"
+                              min={0}
+                              step={1000}
+                              value={item.unitPrice || ''}
                               onChange={e =>
                                 handleItemChange(item.id, 'unitPrice', e.target.value)
                               }
-                              placeholder="$ ARS"
+                              placeholder="$ 0"
                               required
-                              className="w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200 text-right font-mono font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                              className="w-full text-xs px-2 py-1.5 text-right font-mono bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200"
                             />
                           </div>
 
                           <div className="col-span-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              disabled={formItems.length === 1}
-                              className="p-1 text-slate-400 hover:text-rose-500 disabled:opacity-20 transition-colors cursor-pointer"
-                              title="Eliminar fila"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                            </button>
+                            {formItems.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="text-slate-400 hover:text-rose-500 p-1 rounded-md transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
 
-                    {/* Subtotal and Discount Bar */}
-                    <div className="pt-2 flex flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-[#777777]/20 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-600 dark:text-[#888888] text-[11px]">Descuento (%):</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={formDiscount}
-                          onChange={e => setFormDiscount(Number(e.target.value))}
-                          className="w-14 text-xs px-2 py-1 bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-center font-bold"
-                        />
+                    {/* Subtotals and Discount */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-[#777777]/20 flex flex-col items-end gap-1.5 text-xs">
+                      <div className="flex items-center justify-between w-64 text-slate-500 dark:text-[#888888]">
+                        <span>Subtotal bruto:</span>
+                        <span className="font-mono">{formatARS(calculatedSubtotal)}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-right">
-                        <span className="text-slate-500 dark:text-[#888888] text-[11px]">Total Final:</span>
-                        <span className="text-base sm:text-lg font-black text-[#34877c] font-mono">
+                      <div className="flex items-center justify-between w-64 text-slate-600 dark:text-slate-300">
+                        <span className="flex items-center gap-1">
+                          <span>Descuento (%):</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={formDiscount || ''}
+                            onChange={e => setFormDiscount(Number(e.target.value) || 0)}
+                            className="w-12 px-1 py-0.5 bg-slate-100 dark:bg-[#202020] border border-slate-200 dark:border-[#777777]/30 rounded text-center text-xs font-bold text-rose-500"
+                          />
+                        </span>
+                        <span className="font-mono text-rose-500">
+                          - {formatARS(calculatedDiscountAmount)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between w-64 pt-1.5 border-t border-slate-200 dark:border-[#777777]/20 text-sm font-bold text-slate-900 dark:text-white">
+                        <span className="text-[#34877c] uppercase">
+                          {formProjectType === 'mantenimiento' ? 'Total Mensual:' : 'Total Presupuesto:'}
+                        </span>
+                        <span className="text-base font-black text-[#34877c] font-mono">
                           {formatARS(calculatedTotal)}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Free Text Clarification / Detailed Deliverables Scope */}
-                  <div className="border border-slate-200 dark:border-[#777777]/20 rounded-2xl p-3 bg-slate-50/70 dark:bg-[#141414]/90">
-                    <FormattedClarificationEditor
-                      value={formDeliverablesClarification}
-                      onChange={setFormDeliverablesClarification}
-                      label="Aclaraciones & Alcance Detallado de Entregables (Opcional)"
-                      placeholder="Escribí aclaraciones sobre los entregables cotizados (ej: qué incluye, formatos de entrega, cantidad de revisiones, qué no incluye)..."
-                      helperText="Podés usar la barra para aplicar Negrita, Cursiva, Viñetas (•) o separar en Párrafos."
-                    />
-                  </div>
+                  {/* Formatted Scope Clarifications Editor */}
+                  <FormattedClarificationEditor
+                    value={formDeliverablesClarification}
+                    onChange={setFormDeliverablesClarification}
+                  />
                 </div>
-
               </div>
 
-              {/* Modal Footer / Action Buttons */}
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-[#777777]/20 pt-3 mt-2 shrink-0">
+              {/* Form Action Footer */}
+              <div className="pt-3 border-t border-slate-200 dark:border-[#777777]/20 flex items-center justify-end gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseFormModal}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-[#aaaaaa] hover:bg-slate-100 dark:hover:bg-[#282828] transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-[#141414] hover:bg-slate-200 dark:hover:bg-[#282828] text-slate-700 dark:text-[#aaaaaa] hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-semibold border border-slate-200 dark:border-[#777777]/20 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-6 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
                 >
-                  {editingBudget ? 'Guardar Cambios' : 'Crear Presupuesto'}
+                  {editingBudget ? 'Guardar Cambios' : 'Emitir Presupuesto'}
                 </button>
               </div>
             </form>
@@ -832,14 +981,12 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         </div>
       )}
 
-      {/* Preview / Print Modal */}
-      {previewBudget && (
-        <BudgetPrintModal
-          budget={previewBudget}
-          onClose={() => setPreviewBudget(null)}
-          onConvertToProject={handleConvertToProject}
-        />
-      )}
+      {/* PRINT / DOWNLOAD MODAL */}
+      <BudgetPrintModal
+        budget={previewBudget}
+        onClose={() => setPreviewBudget(null)}
+        onConvertToProject={handleConvertToProject}
+      />
     </div>
   );
 };
