@@ -11,10 +11,29 @@ import {
   Search,
   Check,
   X,
-  Sparkles,
   Tag,
   AlertTriangle,
+  Send,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
+
+const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/GUAfXmKIFlD3z9BgNjuFok?s=cl&p=i&mlu=4&amv=2';
+
+// WhatsApp icon SVG component
+const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    stroke="currentColor"
+    strokeWidth="0"
+    fill="currentColor"
+    className={className}
+  >
+    <path d="M12.031 2C6.496 2 2 6.496 2 12.031c0 1.768.461 3.493 1.336 5.011L2 22l5.127-1.345c1.472.803 3.13 1.226 4.804 1.226 5.535 0 10.031-4.496 10.031-10.031C21.962 6.496 17.466 2 12.031 2zm5.86 14.195c-.244.686-1.42 1.261-1.956 1.341-.536.08-1.226.113-3.568-.857-2.822-1.168-4.636-4.041-4.778-4.23-.141-.189-1.144-1.523-1.144-2.905 0-1.382.724-2.062.981-2.345.257-.283.565-.353.754-.353.189 0 .377.002.54.01.173.008.406-.066.634.48.236.565.803 1.956.874 2.1.071.144.118.312.024.499-.094.189-.141.307-.283.471-.141.165-.297.368-.424.495-.141.141-.288.293-.124.575.165.283.731 1.205 1.568 1.95 1.077.958 1.984 1.256 2.267 1.397.283.141.448.118.613-.071.165-.189.707-.824.896-1.107.189-.283.377-.236.634-.141.257.094 1.626.767 1.908.908.283.141.471.212.542.33.071.118.071.686-.173 1.372z" />
+  </svg>
+);
 
 const COLOR_MAP: Record<
   PostItColor,
@@ -88,6 +107,66 @@ export const PostItBoardView: React.FC = () => {
   const [color, setColor] = useState<PostItColor>('yellow');
   const [pinned, setPinned] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
+
+  // Copy feedback state
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const formatNoteForWhatsApp = (noteData: {
+    title: string;
+    content: string;
+    authorName: string;
+    tags?: string[];
+    pinned?: boolean;
+  }) => {
+    const nowStr = new Date().toLocaleString('es-AR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+    const tagsStr =
+      noteData.tags && noteData.tags.length > 0
+        ? noteData.tags.map(t => `#${t.trim().replace(/\s+/g, '_')}`).join(' ')
+        : '';
+
+    let msg = `📌 *POST-IT / NOTA DEL ESTUDIO - UNKE*\n`;
+    msg += `👤 *Cargado por:* ${noteData.authorName || currentUser.name}\n`;
+    if (noteData.title) msg += `🏷️ *Asunto:* ${noteData.title}\n`;
+    msg += `----------------------------------------\n`;
+    msg += `📝 *Mensaje:*\n${noteData.content}\n`;
+    msg += `----------------------------------------\n`;
+    if (tagsStr) msg += `🔖 *Etiquetas:* ${tagsStr}\n`;
+    if (noteData.pinned) msg += `📌 *Estado:* Fijado como prioritario\n`;
+    msg += `📅 *Fecha:* ${nowStr}`;
+
+    return msg;
+  };
+
+  const sendWhatsAppNotification = (noteData: {
+    title: string;
+    content: string;
+    authorName: string;
+    tags?: string[];
+    pinned?: boolean;
+  }) => {
+    const text = formatNoteForWhatsApp(noteData);
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  const handleCopyNoteText = (note: PostIt) => {
+    const text = formatNoteForWhatsApp({
+      title: note.title,
+      content: note.content,
+      authorName: note.authorName,
+      tags: note.tags,
+      pinned: note.pinned,
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(note.id);
+      setTimeout(() => setCopiedId(null), 2500);
+    });
+  };
 
   const handleStartCreate = () => {
     setEditingNote(null);
@@ -96,6 +175,7 @@ export const PostItBoardView: React.FC = () => {
     setColor('yellow');
     setPinned(false);
     setTagInput('');
+    setNotifyWhatsApp(true);
     setIsCreating(true);
   };
 
@@ -106,6 +186,7 @@ export const PostItBoardView: React.FC = () => {
     setColor(note.color);
     setPinned(note.pinned);
     setTagInput(note.tags ? note.tags.join(', ') : '');
+    setNotifyWhatsApp(false); // Default to false when just editing, user can check if needed
     setIsCreating(true);
   };
 
@@ -118,21 +199,28 @@ export const PostItBoardView: React.FC = () => {
       .map(t => t.trim())
       .filter(Boolean);
 
+    const notePayload = {
+      title: title.trim() || 'Nota del Estudio',
+      content: content.trim(),
+      color,
+      pinned,
+      tags,
+    };
+
     if (editingNote) {
-      updatePostIt(editingNote.id, {
-        title: title.trim() || 'Nota sin título',
-        content: content.trim(),
-        color,
-        pinned,
-        tags,
-      });
+      updatePostIt(editingNote.id, notePayload);
     } else {
-      addPostIt({
-        title: title.trim() || 'Nota de estudio',
-        content: content.trim(),
-        color,
-        pinned,
-        tags,
+      addPostIt(notePayload);
+    }
+
+    // Trigger WhatsApp notification if requested
+    if (notifyWhatsApp) {
+      sendWhatsAppNotification({
+        title: notePayload.title,
+        content: notePayload.content,
+        authorName: editingNote ? editingNote.authorName : currentUser.name,
+        tags: notePayload.tags,
+        pinned: notePayload.pinned,
       });
     }
 
@@ -174,37 +262,53 @@ export const PostItBoardView: React.FC = () => {
   const colorOptions: PostItColor[] = ['yellow', 'teal', 'coral', 'purple', 'mint', 'blue'];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 text-white">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Tablero de Notas & Post-Its del Equipo
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <StickyNote className="w-6 h-6 text-[#34877c]" />
+            <span>Tablero de Notas & Post-Its del Equipo</span>
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Espacio colaborativo para dejar recordatorios, ideas, avisos de imprenta o comentarios para los demás integrantes.
+          <p className="text-xs text-[#888888]">
+            Espacio colaborativo con avisos, ideas y sincronización automática vía WhatsApp con el grupo de UNKE.
           </p>
         </div>
 
-        <button
-          onClick={handleStartCreate}
-          className="flex items-center gap-2 bg-[#34877c] hover:bg-[#276961] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#34877c]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Pegar Nuevo Post-It</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* Quick link to UNKE WhatsApp Group */}
+          <a
+            href={WHATSAPP_GROUP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] border border-[#25D366]/30 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+            title="Abrir grupo de WhatsApp de UNKE Estudio"
+          >
+            <WhatsAppIcon className="w-4 h-4 fill-current" />
+            <span className="hidden sm:inline">Grupo UNKE</span>
+            <ExternalLink className="w-3 h-3 opacity-70" />
+          </a>
+
+          <button
+            onClick={handleStartCreate}
+            className="flex items-center gap-2 bg-[#34877c] hover:bg-[#2a6d63] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Pegar Nuevo Post-It</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-[#202020] p-3.5 sm:p-4 rounded-2xl border border-[#777777]/20 shadow-lg flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#777777]" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Buscar en notas por texto o etiqueta..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+            className="w-full pl-9 pr-4 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-white placeholder-[#777777] outline-none focus:border-[#34877c] transition-colors"
           />
         </div>
 
@@ -212,7 +316,7 @@ export const PostItBoardView: React.FC = () => {
           <select
             value={selectedAuthorId}
             onChange={e => setSelectedAuthorId(e.target.value)}
-            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+            className="px-3 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-slate-200 outline-none focus:border-[#34877c]"
           >
             <option value="all">Todos los Integrantes</option>
             {team.map(m => (
@@ -226,75 +330,124 @@ export const PostItBoardView: React.FC = () => {
 
       {/* Post-it Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {filteredNotes.map(note => {
-          const colors = COLOR_MAP[note.color] || COLOR_MAP.yellow;
-
-          return (
-            <div
-              key={note.id}
-              className={`p-5 rounded-2xl border shadow-sm transition-all transform hover:-translate-y-0.5 relative flex flex-col justify-between min-h-[220px] ${colors.bg} ${colors.border} ${colors.text} ${colors.darkBg} ${colors.darkBorder} ${colors.darkText}`}
+        {filteredNotes.length === 0 ? (
+          <div className="col-span-full bg-[#202020] border border-[#777777]/20 rounded-2xl p-12 text-center text-[#777777] shadow-lg">
+            <StickyNote className="w-10 h-10 mx-auto mb-2 opacity-40 text-[#555555]" />
+            <p className="text-sm font-medium text-[#888888]">No hay notas con los filtros seleccionados.</p>
+            <button
+              onClick={handleStartCreate}
+              className="mt-3 text-xs text-[#34877c] hover:underline font-bold cursor-pointer"
             >
-              {/* Pin indicator */}
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5 font-bold text-sm">
-                  {note.pinned && (
-                    <Pin className="w-3.5 h-3.5 fill-current text-rose-600 rotate-12 shrink-0" />
+              + Pegar la primera nota en el tablero
+            </button>
+          </div>
+        ) : (
+          filteredNotes.map(note => {
+            const colors = COLOR_MAP[note.color] || COLOR_MAP.yellow;
+
+            return (
+              <div
+                key={note.id}
+                className={`p-5 rounded-2xl border shadow-md transition-all transform hover:-translate-y-0.5 relative flex flex-col justify-between min-h-[240px] ${colors.bg} ${colors.border} ${colors.text} ${colors.darkBg} ${colors.darkBorder} ${colors.darkText}`}
+              >
+                {/* Pin indicator & top controls */}
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 font-bold text-sm">
+                      {note.pinned && (
+                        <Pin className="w-3.5 h-3.5 fill-current text-rose-600 rotate-12 shrink-0" />
+                      )}
+                      <h3 className="line-clamp-2 leading-tight">{note.title}</h3>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 opacity-80 hover:opacity-100">
+                      <button
+                        onClick={() => updatePostIt(note.id, { pinned: !note.pinned })}
+                        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        title={note.pinned ? 'Desfijar' : 'Fijar arriba'}
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${note.pinned ? 'text-rose-600 fill-current' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => handleStartEdit(note)}
+                        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        title="Editar nota"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(note)}
+                        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Eliminar nota"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <p className="text-xs whitespace-pre-wrap leading-relaxed opacity-90 my-2 font-normal">
+                    {note.content}
+                  </p>
+
+                  {/* Tags */}
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {note.tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/10 font-semibold font-mono"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                  <h3 className="line-clamp-2">{note.title}</h3>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0 opacity-80 hover:opacity-100">
-                  <button
-                    onClick={() => updatePostIt(note.id, { pinned: !note.pinned })}
-                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
-                    title={note.pinned ? 'Desfijar' : 'Fijar arriba'}
-                  >
-                    <Pin className={`w-3 h-3 ${note.pinned ? 'text-rose-600 fill-current' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => handleStartEdit(note)}
-                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
-                    title="Editar nota"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(note)}
-                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 hover:text-rose-600"
-                    title="Eliminar nota"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+                {/* Footer Stamp & WhatsApp notification bar */}
+                <div className="space-y-2 pt-2 border-t border-black/10 dark:border-white/10">
+                  <div className="flex items-center justify-between text-[10px] opacity-80">
+                    <span className="font-bold">por {note.authorName}</span>
+                    <span>{formatDateAR(note.createdAt)}</span>
+                  </div>
 
-              {/* Content */}
-              <p className="text-xs whitespace-pre-wrap leading-relaxed flex-1 opacity-90 my-2 font-normal">
-                {note.content}
-              </p>
-
-              {/* Tags */}
-              {note.tags && note.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {note.tags.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-semibold"
+                  {/* Quick Action: Share to WhatsApp & Copy */}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      onClick={() =>
+                        sendWhatsAppNotification({
+                          title: note.title,
+                          content: note.content,
+                          authorName: note.authorName,
+                          tags: note.tags,
+                          pinned: note.pinned,
+                        })
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-950 dark:text-emerald-300 border border-emerald-500/30 rounded-xl text-[11px] font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                      title="Abrir WhatsApp con esta nota lista para enviar al grupo"
                     >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+                      <WhatsAppIcon className="w-3.5 h-3.5 fill-current text-[#25D366]" />
+                      <span>Notificar WhatsApp</span>
+                    </button>
 
-              {/* Footer Stamp */}
-              <div className="pt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-[10px] opacity-75">
-                <span className="font-semibold">por {note.authorName}</span>
-                <span>{formatDateAR(note.createdAt)}</span>
+                    <button
+                      onClick={() => handleCopyNoteText(note)}
+                      className="p-1.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
+                      title="Copiar texto formateado"
+                    >
+                      {copiedId === note.id ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 opacity-75" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Modal for Creating or Editing Post-It */}
@@ -306,9 +459,14 @@ export const PostItBoardView: React.FC = () => {
                 <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
                   <StickyNote className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-bold text-white">
-                  {editingNote ? 'Editar Post-It' : 'Nuevo Post-It del Estudio'}
-                </h2>
+                <div>
+                  <h2 className="text-base font-bold text-white">
+                    {editingNote ? 'Editar Post-It' : 'Nuevo Post-It del Estudio'}
+                  </h2>
+                  <p className="text-[11px] text-[#888888]">
+                    Publicado como <strong>{currentUser.name}</strong>
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsCreating(false)}
@@ -382,11 +540,12 @@ export const PostItBoardView: React.FC = () => {
                   type="text"
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
-                  placeholder="Imprenta, Reunión, Urgente..."
+                  placeholder="Imprenta, Reunión, Urgente, Presupuesto..."
                   className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
                 />
               </div>
 
+              {/* Pin Checkbox */}
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
@@ -398,6 +557,29 @@ export const PostItBoardView: React.FC = () => {
                 <label htmlFor="pinnedCheck" className="text-xs text-slate-300 cursor-pointer select-none">
                   Fijar este post-it al principio del tablero 📌
                 </label>
+              </div>
+
+              {/* WhatsApp Notification Option */}
+              <div className="p-3 bg-emerald-950/30 border border-emerald-800/50 rounded-xl space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="notifyWhatsAppCheck"
+                    checked={notifyWhatsApp}
+                    onChange={e => setNotifyWhatsApp(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 bg-[#141414] border-emerald-700 focus:ring-0 cursor-pointer"
+                  />
+                  <label
+                    htmlFor="notifyWhatsAppCheck"
+                    className="text-xs font-bold text-emerald-300 cursor-pointer select-none flex items-center gap-1.5"
+                  >
+                    <WhatsAppIcon className="w-3.5 h-3.5 fill-current text-[#25D366]" />
+                    <span>Notificar automáticamente al grupo de WhatsApp</span>
+                  </label>
+                </div>
+                <p className="text-[11px] text-emerald-200/70 pl-6 leading-normal">
+                  Al guardar, se abrirá WhatsApp con el mensaje estructurado para enviarlo al grupo con 1 solo toque.
+                </p>
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-[#777777]/20">
@@ -422,9 +604,10 @@ export const PostItBoardView: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1.5 px-5 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
                   >
-                    {editingNote ? 'Guardar Cambios' : 'Pegar Nota'}
+                    {notifyWhatsApp && <WhatsAppIcon className="w-3.5 h-3.5 fill-current" />}
+                    <span>{editingNote ? 'Guardar Cambios' : 'Pegar Nota'}</span>
                   </button>
                 </div>
               </div>
@@ -463,14 +646,14 @@ export const PostItBoardView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setNoteToDelete(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#888888] hover:text-white hover:bg-[#141414] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#888888] hover:text-white hover:bg-[#141414] transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteNote}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
               >
                 Sí, Eliminar Nota
               </button>
