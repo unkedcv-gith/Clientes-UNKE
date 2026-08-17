@@ -22,6 +22,7 @@ import {
 } from '../services/storage';
 import { generateId } from '../utils/currency';
 import { playUserJoinedSound } from '../utils/audio';
+import { FirestoreService } from '../services/firestoreService';
 
 export interface ConnectionToastData {
   id: number;
@@ -128,12 +129,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const toggleDarkMode = () => setDarkMode(prev => !prev);
 
-  // Per-tab unique session ID for multi-window simulation
+  // Per-tab unique session ID for multi-device/multi-window
   const tabIdRef = useRef<string>(
     typeof window !== 'undefined'
       ? (window.sessionStorage.getItem('unke_tab_instance_id') ||
          Math.random().toString(36).substring(2, 9))
-      : 'server_tab'
+      : 'tab_' + Math.random().toString(36).substring(2, 7)
   );
 
   useEffect(() => {
@@ -144,7 +145,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  // Team & Current User (Per-tab session support with localStorage fallback)
+  // Team & Current User
   const [team, setTeam] = useState<TeamMember[]>(() => {
     const stored = loadFromStorage<TeamMember[]>(STORAGE_KEYS.TEAM, DEFAULT_TEAM);
     return stored.map(m => {
@@ -204,7 +205,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Set of known online member IDs to detect transitions (0 -> 1 connected)
   const knownOnlineMembersRef = useRef<Set<string>>(new Set());
 
-  // Data Collections (Starts 100% clean for real user entries)
+  // Data Collections (Backed by Firestore in cloud + localStorage for instant offline startup)
   const [clients, setClients] = useState<Client[]>(() => {
     return loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
   });
@@ -233,105 +234,80 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateStudioBank = useCallback((bank: typeof DEFAULT_STUDIO_BANK) => {
     setStudioBank(bank);
     saveToStorage(STORAGE_KEYS.STUDIO_INFO, bank);
+    FirestoreService.saveStudioBank(bank);
   }, []);
-
-  // Broadcast Channel setup for Instant Inter-Tab / Inter-Session Sync
-  const broadcastChannel = useMemo(() => {
-    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      return new BroadcastChannel('unke_studio_sync_channel');
-    }
-    return null;
-  }, []);
-
-  // Broadcast Data Changes
-  const broadcastSync = useCallback((type: string, payload?: unknown) => {
-    saveToStorage(STORAGE_KEYS.DATA_SYNC_TIMESTAMP, Date.now());
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({ type, payload, senderId: currentUser.id, senderName: currentUser.name, timestamp: Date.now() });
-    }
-  }, [broadcastChannel, currentUser]);
 
   // Realtime Presence & Editing Collisions
-  const [activePresences, setActivePresences] = useState<ActiveUserPresence[]>(() => {
-    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const threshold = Date.now() - 10000;
-    return stored.filter(p => p.lastHeartbeat > threshold);
-  });
-
+  const [activePresences, setActivePresences] = useState<ActiveUserPresence[]>([]);
   const [currentEditingItem, setCurrentEditingItem] = useState<{ id: string; title: string } | null>(null);
   const [otherEditorWarning, setOtherEditorWarning] = useState<string | null>(null);
 
-  // Presence heartbeat helper (Updates shared localStorage presence list + BroadcastChannel)
-  const syncPresenceHeartbeat = useCallback(() => {
-    if (!isAuthenticated) return;
-
-    const currentPresence: ActiveUserPresence = {
-      tabId: tabIdRef.current,
-      memberId: currentUser.id,
-      memberName: currentUser.name,
-      memberInitials: currentUser.initials,
-      memberColor: currentUser.avatarColor,
-      currentView: activeTab,
-      editingItemId: currentEditingItem?.id || null,
-      editingItemTitle: currentEditingItem?.title || null,
-      lastHeartbeat: Date.now(),
-    };
-
-    const now = Date.now();
-    const threshold = now - 10000; // 10 seconds validity
-    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    // Keep other tabs / other members
-    const filtered = stored.filter(p => {
-      const isMyCurrentTab = p.tabId ? p.tabId === tabIdRef.current : p.memberId === currentUser.id;
-      return !isMyCurrentTab && p.lastHeartbeat > threshold;
-    });
-    const updated = [...filtered, currentPresence];
-
-    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
-    setActivePresences(updated);
-
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({
-        type: 'HEARTBEAT',
-        presence: currentPresence,
-      });
-    }
-  }, [isAuthenticated, currentUser, activeTab, currentEditingItem, broadcastChannel]);
-
-  // Remove presence on logout or page close
-  const removeMyPresence = useCallback(() => {
-    const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const updated = stored.filter(p => (p.tabId ? p.tabId !== tabIdRef.current : p.memberId !== currentUser.id));
-    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
-    setActivePresences(updated);
-
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({
-        type: 'USER_LOGOUT',
-        memberId: currentUser.id,
-        tabId: tabIdRef.current,
-      });
-    }
-  }, [currentUser.id, broadcastChannel]);
-
-  // Periodic heartbeat timer (every 2.5s for fast presence detection)
+  // Sync initial local data to Firestore if cloud is newly initialized
   useEffect(() => {
-    if (!isAuthenticated) return;
+    FirestoreService.syncLocalToCloudIfEmpty({
+      clients: loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS),
+      projects: loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS),
+      budgets: loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS),
+      postIts: loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS),
+      team: loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM),
+      studioBank: loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK),
+    });
+  }, []);
 
-    syncPresenceHeartbeat();
-    const interval = setInterval(syncPresenceHeartbeat, 2500);
+  // --- FIRESTORE REALTIME SUBSCRIPTIONS (LIVE DATA FOR ALL USERS) ---
+  useEffect(() => {
+    // 1. Clients
+    const unsubClients = FirestoreService.subscribeClients(cloudClients => {
+      setClients(cloudClients);
+      saveToStorage(STORAGE_KEYS.CLIENTS, cloudClients);
+    });
 
-    const handleBeforeUnload = () => {
-      removeMyPresence();
-    };
+    // 2. Projects
+    const unsubProjects = FirestoreService.subscribeProjects(cloudProjects => {
+      setProjects(cloudProjects);
+      saveToStorage(STORAGE_KEYS.PROJECTS, cloudProjects);
+    });
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    // 3. Budgets
+    const unsubBudgets = FirestoreService.subscribeBudgets(cloudBudgets => {
+      setBudgets(cloudBudgets);
+      saveToStorage(STORAGE_KEYS.BUDGETS, cloudBudgets);
+    });
+
+    // 4. Post-its
+    const unsubPostIts = FirestoreService.subscribePostIts(cloudPostIts => {
+      setPostIts(cloudPostIts);
+      saveToStorage(STORAGE_KEYS.POSTITS, cloudPostIts);
+    });
+
+    // 5. Audit Logs
+    const unsubAudit = FirestoreService.subscribeAuditLogs(cloudLogs => {
+      setAuditLogs(cloudLogs);
+      saveToStorage(STORAGE_KEYS.AUDIT_LOGS, cloudLogs);
+    });
+
+    // 6. Team Members
+    const unsubTeam = FirestoreService.subscribeTeam(cloudTeam => {
+      setTeam(cloudTeam);
+      saveToStorage(STORAGE_KEYS.TEAM, cloudTeam);
+    });
+
+    // 7. Bank Settings
+    const unsubBank = FirestoreService.subscribeStudioBank(cloudBank => {
+      setStudioBank(cloudBank);
+      saveToStorage(STORAGE_KEYS.STUDIO_INFO, cloudBank);
+    });
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      unsubClients();
+      unsubProjects();
+      unsubBudgets();
+      unsubPostIts();
+      unsubAudit();
+      unsubTeam();
+      unsubBank();
     };
-  }, [isAuthenticated, syncPresenceHeartbeat, removeMyPresence]);
+  }, []);
 
   // Notify when a new member connects
   const handleNewMemberConnected = useCallback((member: { id: string; name: string; initials: string; color: string }) => {
@@ -350,130 +326,87 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, [isAuthenticated, currentUser.id]);
 
-  // Multi-tab Storage Event Listener for Shared Database & Presence
+  // Realtime Presences Firestore subscription
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (!e.key) return;
-
-      if (e.key === STORAGE_KEYS.CLIENTS) {
-        setClients(loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS));
-      } else if (e.key === STORAGE_KEYS.PROJECTS) {
-        setProjects(loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS));
-      } else if (e.key === STORAGE_KEYS.BUDGETS) {
-        setBudgets(loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS));
-      } else if (e.key === STORAGE_KEYS.POSTITS) {
-        setPostIts(loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS));
-      } else if (e.key === STORAGE_KEYS.AUDIT_LOGS) {
-        setAuditLogs(loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS));
-      } else if (e.key === STORAGE_KEYS.STUDIO_INFO) {
-        setStudioBank(loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK));
-      } else if (e.key === STORAGE_KEYS.TEAM) {
-        setTeam(loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM));
-      } else if (e.key === STORAGE_KEYS.ACTIVE_PRESENCES) {
-        const presences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-        const valid = presences.filter(p => Date.now() - p.lastHeartbeat < 10000);
-        setActivePresences(valid);
-
-        // Check for new member connecting
-        valid.forEach(p => {
-          if (p.memberId !== currentUser.id && !knownOnlineMembersRef.current.has(p.memberId)) {
-            knownOnlineMembersRef.current.add(p.memberId);
-            handleNewMemberConnected({
-              id: p.memberId,
-              name: p.memberName,
-              initials: p.memberInitials,
-              color: p.memberColor,
-            });
-          }
-        });
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [currentUser.id, handleNewMemberConnected]);
-
-  // Broadcast channel message handler
-  useEffect(() => {
-    if (!broadcastChannel) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (!data) return;
-
-      if ((data.type === 'HEARTBEAT' || data.type === 'USER_LOGIN') && data.presence) {
-        const presence: ActiveUserPresence = data.presence;
-
-        // Check if this is a newly connected other user
-        if (presence.memberId !== currentUser.id) {
-          if (!knownOnlineMembersRef.current.has(presence.memberId) || data.type === 'USER_LOGIN') {
-            knownOnlineMembersRef.current.add(presence.memberId);
-            handleNewMemberConnected({
-              id: presence.memberId,
-              name: presence.memberName,
-              initials: presence.memberInitials,
-              color: presence.memberColor,
-            });
-          }
-        }
-
-        setActivePresences(prev => {
-          const now = Date.now();
-          const filtered = prev.filter(p => {
-            const isSame = p.tabId && presence.tabId ? p.tabId === presence.tabId : p.memberId === presence.memberId;
-            return !isSame && now - p.lastHeartbeat < 10000;
-          });
-          return [...filtered, presence];
-        });
-
-        // Collision warning
-        if (
-          currentEditingItem &&
-          presence.editingItemId === currentEditingItem.id &&
-          presence.memberId !== currentUser.id
-        ) {
-          setOtherEditorWarning(
-            `⚠️ ¡Atención! ${presence.memberName} también está editando "${currentEditingItem.title}". Coordinen para no pisar cambios.`
-          );
-        }
-      }
-
-      if (data.type === 'USER_LOGOUT' && data.memberId) {
-        knownOnlineMembersRef.current.delete(data.memberId);
-        setActivePresences(prev => prev.filter(p => p.memberId !== data.memberId));
-      }
-
-      if (data.type === 'DATA_RELOAD') {
-        // Re-read storage
-        setClients(loadFromStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS));
-        setProjects(loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS));
-        setBudgets(loadFromStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS));
-        setPostIts(loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS));
-        setAuditLogs(loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS));
-        setStudioBank(loadFromStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK));
-        setTeam(loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM));
-      }
-    };
-
-    broadcastChannel.addEventListener('message', handleMessage);
-    return () => broadcastChannel.removeEventListener('message', handleMessage);
-  }, [broadcastChannel, currentUser, currentEditingItem, handleNewMemberConnected]);
-
-  // Clean stale presences every 3 seconds
-  useEffect(() => {
-    const cleaner = setInterval(() => {
+    const unsubPresences = FirestoreService.subscribePresences(cloudPresences => {
       const now = Date.now();
-      const threshold = now - 10000;
-      setActivePresences(prev => {
-        const filtered = prev.filter(p => p.lastHeartbeat > threshold);
-        // Sync known members
-        const activeIds = new Set(filtered.map(p => p.memberId));
-        knownOnlineMembersRef.current = activeIds;
-        return filtered;
+      const valid = cloudPresences.filter(p => now - p.lastHeartbeat < 15000);
+      setActivePresences(valid);
+
+      // Check for newly joined teammates
+      valid.forEach(p => {
+        if (p.memberId !== currentUser.id && !knownOnlineMembersRef.current.has(p.memberId)) {
+          knownOnlineMembersRef.current.add(p.memberId);
+          handleNewMemberConnected({
+            id: p.memberId,
+            name: p.memberName,
+            initials: p.memberInitials,
+            color: p.memberColor,
+          });
+        }
       });
-    }, 3000);
-    return () => clearInterval(cleaner);
-  }, []);
+
+      // Collision check
+      if (currentEditingItem) {
+        const collision = valid.find(
+          p => p.editingItemId === currentEditingItem.id && p.memberId !== currentUser.id
+        );
+        if (collision) {
+          setOtherEditorWarning(
+            `⚠️ ¡Atención! ${collision.memberName} también está editando "${currentEditingItem.title}". Coordinen para no pisar cambios.`
+          );
+        } else {
+          setOtherEditorWarning(null);
+        }
+      }
+    });
+
+    return () => unsubPresences();
+  }, [currentUser.id, currentEditingItem, handleNewMemberConnected]);
+
+  // Sync presence heartbeat to Cloud Firestore
+  const syncPresenceHeartbeat = useCallback(() => {
+    if (!isAuthenticated) return;
+
+    const currentPresence: ActiveUserPresence = {
+      tabId: tabIdRef.current,
+      memberId: currentUser.id,
+      memberName: currentUser.name,
+      memberInitials: currentUser.initials,
+      memberColor: currentUser.avatarColor,
+      currentView: activeTab,
+      editingItemId: currentEditingItem?.id || null,
+      editingItemTitle: currentEditingItem?.title || null,
+      lastHeartbeat: Date.now(),
+    };
+
+    FirestoreService.savePresence(currentPresence);
+  }, [isAuthenticated, currentUser, activeTab, currentEditingItem]);
+
+  // Remove presence on logout or page close
+  const removeMyPresence = useCallback(() => {
+    if (currentUser?.id) {
+      FirestoreService.removePresence(currentUser.id, tabIdRef.current);
+    }
+  }, [currentUser?.id]);
+
+  // Periodic heartbeat timer (every 4s to cloud Firestore)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    syncPresenceHeartbeat();
+    const interval = setInterval(syncPresenceHeartbeat, 4000);
+
+    const handleBeforeUnload = () => {
+      removeMyPresence();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isAuthenticated, syncPresenceHeartbeat, removeMyPresence]);
 
   // Auto-dismiss toast after 5s
   useEffect(() => {
@@ -521,7 +454,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setInactivityLoggedOut(false);
     setActiveTab('dashboard');
 
-    // Register presence immediately
+    // Register presence in cloud
     const currentPresence: ActiveUserPresence = {
       tabId: tabIdRef.current,
       memberId: member.id,
@@ -533,23 +466,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       editingItemTitle: null,
       lastHeartbeat: now,
     };
-    const storedPresences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const updatedPresences = [
-      ...storedPresences.filter(p => (p.tabId ? p.tabId !== tabIdRef.current : p.memberId !== member.id)),
-      currentPresence,
-    ];
-    saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updatedPresences);
-    setActivePresences(updatedPresences);
-
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({
-        type: 'USER_LOGIN',
-        presence: currentPresence,
-      });
-    }
+    FirestoreService.savePresence(currentPresence);
 
     return { success: true };
-  }, [team, broadcastChannel]);
+  }, [team]);
 
   // Logout
   const logout = useCallback(() => {
@@ -637,8 +557,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       saveToStorage(STORAGE_KEYS.TEAM, next);
       return next;
     });
-    broadcastSync('DATA_RELOAD');
-  }, [broadcastSync]);
+    FirestoreService.saveTeamMember(updated);
+  }, []);
 
   // Audit Logger helper
   const addAuditLog = useCallback((
@@ -657,11 +577,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       entityId,
       details,
     };
-    setAuditLogs(prev => {
-      const updated = [newLog, ...prev].slice(0, 100);
-      saveToStorage(STORAGE_KEYS.AUDIT_LOGS, updated);
-      return updated;
-    });
+    FirestoreService.saveAuditLog(newLog);
   }, [currentUser]);
 
   // Start / Stop Editing Item helpers
@@ -695,47 +611,32 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
-    setClients(prev => {
-      const updated = [newClient, ...prev];
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated);
-      return updated;
-    });
+    FirestoreService.saveClient(newClient);
     addAuditLog('creó', 'cliente', newClient.id, `Creó el cliente "${newClient.name}"`);
-    broadcastSync('DATA_RELOAD');
     return newClient;
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [currentUser, addAuditLog]);
 
   const updateClient = useCallback((id: string, clientData: Partial<Client>) => {
-    setClients(prev => {
-      const updated = prev.map(c =>
-        c.id === id
-          ? {
-              ...c,
-              ...clientData,
-              updatedAt: new Date().toISOString(),
-              updatedBy: currentUser.name,
-            }
-          : c
-      );
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated);
-      return updated;
-    });
+    const existing = clients.find(c => c.id === id);
+    if (!existing) return;
+
+    const updated: Client = {
+      ...existing,
+      ...clientData,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveClient(updated);
     addAuditLog('editó', 'cliente', id, `Actualizó datos del cliente`);
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [clients, currentUser, addAuditLog]);
 
   const deleteClient = useCallback((id: string) => {
     const target = clients.find(c => c.id === id);
-    setClients(prev => {
-      const updated = prev.filter(c => c.id !== id);
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated);
-      return updated;
-    });
+    FirestoreService.deleteClient(id);
     if (target) {
       addAuditLog('eliminó', 'cliente', id, `Eliminó el cliente "${target.name}"`);
     }
-    broadcastSync('DATA_RELOAD');
-  }, [clients, addAuditLog, broadcastSync]);
+  }, [clients, addAuditLog]);
 
   // PROJECTS CRUD
   const addProject = useCallback((projectData: Omit<Project, 'id' | 'code' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>): Project => {
@@ -753,130 +654,103 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
-    setProjects(prev => {
-      const updated = [newProject, ...prev];
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
+    FirestoreService.saveProject(newProject);
     addAuditLog(
       'creó',
       'proyecto',
       newProject.id,
       `Creó el ${newProject.type === 'mantenimiento' ? 'abono' : 'proyecto'} "${newProject.title}" para ${newProject.clientName}`
     );
-    broadcastSync('DATA_RELOAD');
     return newProject;
-  }, [currentUser, projects.length, addAuditLog, broadcastSync]);
+  }, [currentUser, projects.length, addAuditLog]);
 
   const updateProject = useCallback((id: string, projectData: Partial<Project>) => {
-    setProjects(prev => {
-      const updated = prev.map(p =>
-        p.id === id
-          ? {
-              ...p,
-              ...projectData,
-              updatedAt: new Date().toISOString(),
-              updatedBy: currentUser.name,
-            }
-          : p
-      );
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
+    const existing = projects.find(p => p.id === id);
+    if (!existing) return;
+
+    const updated: Project = {
+      ...existing,
+      ...projectData,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveProject(updated);
     addAuditLog('editó', 'proyecto', id, `Actualizó proyecto`);
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [projects, currentUser, addAuditLog]);
 
   const deleteProject = useCallback((id: string) => {
     const target = projects.find(p => p.id === id);
-    setProjects(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
+    FirestoreService.deleteProject(id);
     if (target) {
       addAuditLog('eliminó', 'proyecto', id, `Eliminó el proyecto "${target.title}"`);
     }
-    broadcastSync('DATA_RELOAD');
-  }, [projects, addAuditLog, broadcastSync]);
+  }, [projects, addAuditLog]);
 
   const toggleDeliverable = useCallback((projectId: string, deliverableId: string) => {
-    setProjects(prev => {
-      const updated = prev.map(p => {
-        if (p.id !== projectId) return p;
-        const nextDeliverables = p.deliverables.map(d =>
-          d.id === deliverableId ? { ...d, done: !d.done } : d
-        );
-        return {
-          ...p,
-          deliverables: nextDeliverables,
-          updatedAt: new Date().toISOString(),
-          updatedBy: currentUser.name,
-        };
-      });
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, broadcastSync]);
+    const p = projects.find(proj => proj.id === projectId);
+    if (!p) return;
+
+    const nextDeliverables = p.deliverables.map(d =>
+      d.id === deliverableId ? { ...d, done: !d.done } : d
+    );
+    const updated: Project = {
+      ...p,
+      deliverables: nextDeliverables,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveProject(updated);
+  }, [projects, currentUser]);
 
   const recordPayment = useCallback((projectId: string, amount: number, method: string, notes?: string) => {
-    setProjects(prev => {
-      const updated = prev.map(p => {
-        if (p.id !== projectId) return p;
-        const newPaid = p.paidAmount + amount;
-        const newRecord = {
-          id: generateId('pay'),
-          date: new Date().toISOString().split('T')[0],
-          amount,
-          method,
-          notes: notes || '',
-          recordedBy: currentUser.name,
-        };
-        const newStatus =
-          newPaid >= p.totalAmount
-            ? 'pagado'
-            : newPaid > 0
-            ? 'parcial'
-            : p.paymentStatus;
+    const p = projects.find(proj => proj.id === projectId);
+    if (!p) return;
 
-        return {
-          ...p,
-          paidAmount: newPaid,
-          paymentStatus: newStatus as Project['paymentStatus'],
-          paymentsHistory: [newRecord, ...(p.paymentsHistory || [])],
-          updatedAt: new Date().toISOString(),
-          updatedBy: currentUser.name,
-        };
-      });
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
+    const newPaid = p.paidAmount + amount;
+    const newRecord = {
+      id: generateId('pay'),
+      date: new Date().toISOString().split('T')[0],
+      amount,
+      method,
+      notes: notes || '',
+      recordedBy: currentUser.name,
+    };
+    const newStatus =
+      newPaid >= p.totalAmount
+        ? 'pagado'
+        : newPaid > 0
+        ? 'parcial'
+        : p.paymentStatus;
+
+    const updated: Project = {
+      ...p,
+      paidAmount: newPaid,
+      paymentStatus: newStatus as Project['paymentStatus'],
+      paymentsHistory: [newRecord, ...(p.paymentsHistory || [])],
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveProject(updated);
     addAuditLog('registró pago', 'proyecto', projectId, `Registró pago por $ ${amount.toLocaleString('es-AR')}`);
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [projects, currentUser, addAuditLog]);
 
   const toggleMonthlyPayment = useCallback((projectId: string, monthYear: string) => {
-    setProjects(prev => {
-      const updated = prev.map(p => {
-        if (p.id !== projectId) return p;
-        const isCurrentlyPaidForMonth = p.lastMonthlyPaymentDate === monthYear;
-        const nextLastDate = isCurrentlyPaidForMonth ? '' : monthYear;
-        const nextStatus = isCurrentlyPaidForMonth ? 'pendiente' : 'al_dia';
+    const p = projects.find(proj => proj.id === projectId);
+    if (!p) return;
 
-        return {
-          ...p,
-          lastMonthlyPaymentDate: nextLastDate,
-          paymentStatus: nextStatus as Project['paymentStatus'],
-          updatedAt: new Date().toISOString(),
-          updatedBy: currentUser.name,
-        };
-      });
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, broadcastSync]);
+    const isCurrentlyPaidForMonth = p.lastMonthlyPaymentDate === monthYear;
+    const nextLastDate = isCurrentlyPaidForMonth ? '' : monthYear;
+    const nextStatus = isCurrentlyPaidForMonth ? 'pendiente' : 'al_dia';
+
+    const updated: Project = {
+      ...p,
+      lastMonthlyPaymentDate: nextLastDate,
+      paymentStatus: nextStatus as Project['paymentStatus'],
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveProject(updated);
+  }, [projects, currentUser]);
 
   // BUDGETS CRUD
   const addBudget = useCallback((budgetData: Omit<Budget, 'id' | 'number' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>): Budget => {
@@ -894,47 +768,32 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
-    setBudgets(prev => {
-      const updated = [newBudget, ...prev];
-      saveToStorage(STORAGE_KEYS.BUDGETS, updated);
-      return updated;
-    });
+    FirestoreService.saveBudget(newBudget);
     addAuditLog('creó', 'presupuesto', newBudget.id, `Creó el presupuesto ${newBudget.number} para ${newBudget.clientName}`);
-    broadcastSync('DATA_RELOAD');
     return newBudget;
-  }, [currentUser, budgets.length, addAuditLog, broadcastSync]);
+  }, [currentUser, budgets.length, addAuditLog]);
 
   const updateBudget = useCallback((id: string, budgetData: Partial<Budget>) => {
-    setBudgets(prev => {
-      const updated = prev.map(b =>
-        b.id === id
-          ? {
-              ...b,
-              ...budgetData,
-              updatedAt: new Date().toISOString(),
-              updatedBy: currentUser.name,
-            }
-          : b
-      );
-      saveToStorage(STORAGE_KEYS.BUDGETS, updated);
-      return updated;
-    });
+    const existing = budgets.find(b => b.id === id);
+    if (!existing) return;
+
+    const updated: Budget = {
+      ...existing,
+      ...budgetData,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
+    FirestoreService.saveBudget(updated);
     addAuditLog('editó', 'presupuesto', id, `Actualizó presupuesto`);
-    broadcastSync('DATA_RELOAD');
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [budgets, currentUser, addAuditLog]);
 
   const deleteBudget = useCallback((id: string) => {
     const target = budgets.find(b => b.id === id);
-    setBudgets(prev => {
-      const updated = prev.filter(b => b.id !== id);
-      saveToStorage(STORAGE_KEYS.BUDGETS, updated);
-      return updated;
-    });
+    FirestoreService.deleteBudget(id);
     if (target) {
       addAuditLog('eliminó', 'presupuesto', id, `Eliminó el presupuesto ${target.number}`);
     }
-    broadcastSync('DATA_RELOAD');
-  }, [budgets, addAuditLog, broadcastSync]);
+  }, [budgets, addAuditLog]);
 
   const duplicateBudget = useCallback((budgetId: string): Budget => {
     const original = budgets.find(b => b.id === budgetId);
@@ -957,15 +816,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
-    setBudgets(prev => {
-      const updated = [duplicated, ...prev];
-      saveToStorage(STORAGE_KEYS.BUDGETS, updated);
-      return updated;
-    });
+    FirestoreService.saveBudget(duplicated);
     addAuditLog('creó', 'presupuesto', duplicated.id, `Duplicó presupuesto ${original.number} como ${duplicated.number}`);
-    broadcastSync('DATA_RELOAD');
     return duplicated;
-  }, [budgets, currentUser, addAuditLog, broadcastSync]);
+  }, [budgets, currentUser, addAuditLog]);
 
   const convertBudgetToProject = useCallback((budgetId: string): Project | null => {
     const budget = budgets.find(b => b.id === budgetId);
@@ -1009,27 +863,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
     };
 
-    setProjects(prev => {
-      const updated = [newProject, ...prev];
-      saveToStorage(STORAGE_KEYS.PROJECTS, updated);
-      return updated;
-    });
+    const updatedBudget: Budget = {
+      ...budget,
+      status: 'aprobado' as Budget['status'],
+      convertedToProjectId: newProject.id,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.name,
+    };
 
-    setBudgets(prev => {
-      const updated = prev.map(b =>
-        b.id === budgetId
-          ? {
-              ...b,
-              status: 'aprobado' as Budget['status'],
-              convertedToProjectId: newProject.id,
-              updatedAt: new Date().toISOString(),
-              updatedBy: currentUser.name,
-            }
-          : b
-      );
-      saveToStorage(STORAGE_KEYS.BUDGETS, updated);
-      return updated;
-    });
+    FirestoreService.saveProject(newProject);
+    FirestoreService.saveBudget(updatedBudget);
 
     addAuditLog(
       'aprobó presupuesto',
@@ -1037,9 +880,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       budgetId,
       `Aprobó presupuesto ${budget.number} y lo convirtió en el proyecto activo ${code}`
     );
-    broadcastSync('DATA_RELOAD');
     return newProject;
-  }, [budgets, projects.length, currentUser, addAuditLog, broadcastSync]);
+  }, [budgets, projects.length, currentUser, addAuditLog]);
 
   // POST-ITS CRUD
   const addPostIt = useCallback((data: Omit<PostIt, 'id' | 'createdAt' | 'updatedAt' | 'authorId' | 'authorName'>): PostIt => {
@@ -1051,47 +893,32 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setPostIts(prev => {
-      const updated = [newNote, ...prev];
-      saveToStorage(STORAGE_KEYS.POSTITS, updated);
-      return updated;
-    });
+    FirestoreService.savePostIt(newNote);
     addAuditLog('creó', 'nota', newNote.id, `Agregó la nota rápida "${newNote.title}"`);
-    broadcastSync('DATA_RELOAD');
     return newNote;
-  }, [currentUser, addAuditLog, broadcastSync]);
+  }, [currentUser, addAuditLog]);
 
   const updatePostIt = useCallback((id: string, data: Partial<PostIt>) => {
-    setPostIts(prev => {
-      const updated = prev.map(n =>
-        n.id === id
-          ? {
-              ...n,
-              ...data,
-              updatedAt: new Date().toISOString(),
-            }
-          : n
-      );
-      saveToStorage(STORAGE_KEYS.POSTITS, updated);
-      return updated;
-    });
-    broadcastSync('DATA_RELOAD');
-  }, [broadcastSync]);
+    const existing = postIts.find(n => n.id === id);
+    if (!existing) return;
+
+    const updated: PostIt = {
+      ...existing,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    FirestoreService.savePostIt(updated);
+  }, [postIts]);
 
   const deletePostIt = useCallback((id: string) => {
-    setPostIts(prev => {
-      const updated = prev.filter(n => n.id !== id);
-      saveToStorage(STORAGE_KEYS.POSTITS, updated);
-      return updated;
-    });
-    broadcastSync('DATA_RELOAD');
-  }, [broadcastSync]);
+    FirestoreService.deletePostIt(id);
+  }, []);
 
   // BACKUP & RESTORE
   const exportDataJSON = useCallback(() => {
     const bundle = {
       app: 'UNKE Dashboard',
-      version: '4.0',
+      version: '5.0_cloud',
       exportedAt: new Date().toISOString(),
       exportedBy: currentUser.name,
       clients,
@@ -1109,60 +936,41 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const data = JSON.parse(jsonString);
       if (Array.isArray(data.clients)) {
-        setClients(data.clients);
-        saveToStorage(STORAGE_KEYS.CLIENTS, data.clients);
+        data.clients.forEach((c: Client) => FirestoreService.saveClient(c));
       }
       if (Array.isArray(data.projects)) {
-        setProjects(data.projects);
-        saveToStorage(STORAGE_KEYS.PROJECTS, data.projects);
+        data.projects.forEach((p: Project) => FirestoreService.saveProject(p));
       }
       if (Array.isArray(data.budgets)) {
-        setBudgets(data.budgets);
-        saveToStorage(STORAGE_KEYS.BUDGETS, data.budgets);
+        data.budgets.forEach((b: Budget) => FirestoreService.saveBudget(b));
       }
       if (Array.isArray(data.postIts)) {
-        setPostIts(data.postIts);
-        saveToStorage(STORAGE_KEYS.POSTITS, data.postIts);
+        data.postIts.forEach((post: PostIt) => FirestoreService.savePostIt(post));
       }
       if (Array.isArray(data.team)) {
-        setTeam(data.team);
-        saveToStorage(STORAGE_KEYS.TEAM, data.team);
+        data.team.forEach((t: TeamMember) => FirestoreService.saveTeamMember(t));
       }
       if (data.studioBank) {
-        setStudioBank(data.studioBank);
-        saveToStorage(STORAGE_KEYS.STUDIO_INFO, data.studioBank);
+        FirestoreService.saveStudioBank(data.studioBank);
       }
       if (Array.isArray(data.auditLogs)) {
-        setAuditLogs(data.auditLogs);
-        saveToStorage(STORAGE_KEYS.AUDIT_LOGS, data.auditLogs);
+        data.auditLogs.forEach((log: AuditLogItem) => FirestoreService.saveAuditLog(log));
       }
-      broadcastSync('DATA_RELOAD');
       return true;
     } catch (e) {
       console.error('Error importing backup JSON:', e);
       return false;
     }
-  }, [broadcastSync]);
+  }, []);
 
   const resetToSampleData = useCallback(() => {
-    setClients(INITIAL_CLIENTS);
-    setProjects(INITIAL_PROJECTS);
-    setBudgets(INITIAL_BUDGETS);
-    setPostIts(INITIAL_POSTITS);
-    setTeam(DEFAULT_TEAM);
-    setStudioBank(DEFAULT_STUDIO_BANK);
-    setAuditLogs(INITIAL_AUDIT_LOGS);
-
-    saveToStorage(STORAGE_KEYS.CLIENTS, INITIAL_CLIENTS);
-    saveToStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS);
-    saveToStorage(STORAGE_KEYS.BUDGETS, INITIAL_BUDGETS);
-    saveToStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS);
-    saveToStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM);
-    saveToStorage(STORAGE_KEYS.STUDIO_INFO, DEFAULT_STUDIO_BANK);
-    saveToStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
-
-    broadcastSync('DATA_RELOAD');
-  }, [broadcastSync]);
+    clients.forEach(c => FirestoreService.deleteClient(c.id));
+    projects.forEach(p => FirestoreService.deleteProject(p.id));
+    budgets.forEach(b => FirestoreService.deleteBudget(b.id));
+    postIts.forEach(post => FirestoreService.deletePostIt(post.id));
+    DEFAULT_TEAM.forEach(t => FirestoreService.saveTeamMember(t));
+    FirestoreService.saveStudioBank(DEFAULT_STUDIO_BANK);
+  }, [clients, projects, budgets, postIts]);
 
   return (
     <StudioContext.Provider
