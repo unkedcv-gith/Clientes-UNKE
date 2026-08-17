@@ -158,6 +158,7 @@ export interface AuditLogItem {
 }
 
 export interface ActiveUserPresence {
+  tabId?: string;
   memberId: string;
   memberName: string;
   memberInitials: string;

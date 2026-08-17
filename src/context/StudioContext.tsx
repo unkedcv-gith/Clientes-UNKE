@@ -21,6 +21,15 @@ import {
   STORAGE_KEYS,
 } from '../services/storage';
 import { generateId } from '../utils/currency';
+import { playUserJoinedSound } from '../utils/audio';
+
+export interface ConnectionToastData {
+  id: number;
+  memberName: string;
+  memberInitials: string;
+  memberColor: string;
+  timestamp: number;
+}
 
 interface StudioContextType {
   // Authentication
@@ -42,6 +51,9 @@ interface StudioContextType {
   startEditingItem: (id: string, title: string) => void;
   stopEditingItem: () => void;
   otherEditorWarning: string | null;
+  connectionToast: ConnectionToastData | null;
+  dismissConnectionToast: () => void;
+  playNotificationChime: () => void;
 
   // Clients
   clients: Client[];
@@ -116,10 +128,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const toggleDarkMode = () => setDarkMode(prev => !prev);
 
-  // Team & Current User
+  // Per-tab unique session ID for multi-window simulation
+  const tabIdRef = useRef<string>(
+    typeof window !== 'undefined'
+      ? (window.sessionStorage.getItem('unke_tab_instance_id') ||
+         Math.random().toString(36).substring(2, 9))
+      : 'server_tab'
+  );
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem('unke_tab_instance_id', tabIdRef.current);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Team & Current User (Per-tab session support with localStorage fallback)
   const [team, setTeam] = useState<TeamMember[]>(() => {
     const stored = loadFromStorage<TeamMember[]>(STORAGE_KEYS.TEAM, DEFAULT_TEAM);
-    // Ensure avatarColors match the unified UNKE palette #27655d, #34877c, #5d9f96
     return stored.map(m => {
       const defaultMatch = DEFAULT_TEAM.find(d => d.id === m.id);
       if (defaultMatch) {
@@ -130,10 +157,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
+    try {
+      const sess = sessionStorage.getItem('unke_session_current_user_id');
+      if (sess) return sess;
+    } catch {
+      // ignore
+    }
     return loadFromStorage(STORAGE_KEYS.CURRENT_USER_ID, DEFAULT_TEAM[0].id);
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const sess = sessionStorage.getItem('unke_session_auth');
+      if (sess !== null) return JSON.parse(sess);
+    } catch {
+      // ignore
+    }
     return loadFromStorage(STORAGE_KEYS.AUTH_SESSION, false);
   });
 
@@ -150,6 +189,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const lastActivityRef = useRef<number>(Date.now());
   const lastSavedActivityRef = useRef<number>(Date.now());
   const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes inactivity
+
+  // Connection Toast state for newly joined users
+  const [connectionToast, setConnectionToast] = useState<ConnectionToastData | null>(null);
+
+  const dismissConnectionToast = useCallback(() => {
+    setConnectionToast(null);
+  }, []);
+
+  const playNotificationChime = useCallback(() => {
+    playUserJoinedSound();
+  }, []);
+
+  // Set of known online member IDs to detect transitions (0 -> 1 connected)
+  const knownOnlineMembersRef = useRef<Set<string>>(new Set());
 
   // Data Collections (Starts 100% clean for real user entries)
   const [clients, setClients] = useState<Client[]>(() => {
@@ -201,7 +254,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Realtime Presence & Editing Collisions
   const [activePresences, setActivePresences] = useState<ActiveUserPresence[]>(() => {
     const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const threshold = Date.now() - 12000;
+    const threshold = Date.now() - 10000;
     return stored.filter(p => p.lastHeartbeat > threshold);
   });
 
@@ -213,6 +266,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isAuthenticated) return;
 
     const currentPresence: ActiveUserPresence = {
+      tabId: tabIdRef.current,
       memberId: currentUser.id,
       memberName: currentUser.name,
       memberInitials: currentUser.initials,
@@ -224,9 +278,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const now = Date.now();
-    const threshold = now - 12000; // 12 seconds validity
+    const threshold = now - 10000; // 10 seconds validity
     const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const filtered = stored.filter(p => p.memberId !== currentUser.id && p.lastHeartbeat > threshold);
+    // Keep other tabs / other members
+    const filtered = stored.filter(p => {
+      const isMyCurrentTab = p.tabId ? p.tabId === tabIdRef.current : p.memberId === currentUser.id;
+      return !isMyCurrentTab && p.lastHeartbeat > threshold;
+    });
     const updated = [...filtered, currentPresence];
 
     saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
@@ -243,7 +301,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Remove presence on logout or page close
   const removeMyPresence = useCallback(() => {
     const stored = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const updated = stored.filter(p => p.memberId !== currentUser.id);
+    const updated = stored.filter(p => (p.tabId ? p.tabId !== tabIdRef.current : p.memberId !== currentUser.id));
     saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updated);
     setActivePresences(updated);
 
@@ -251,16 +309,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       broadcastChannel.postMessage({
         type: 'USER_LOGOUT',
         memberId: currentUser.id,
+        tabId: tabIdRef.current,
       });
     }
   }, [currentUser.id, broadcastChannel]);
 
-  // Periodic heartbeat timer
+  // Periodic heartbeat timer (every 2.5s for fast presence detection)
   useEffect(() => {
     if (!isAuthenticated) return;
 
     syncPresenceHeartbeat();
-    const interval = setInterval(syncPresenceHeartbeat, 3000);
+    const interval = setInterval(syncPresenceHeartbeat, 2500);
 
     const handleBeforeUnload = () => {
       removeMyPresence();
@@ -274,7 +333,24 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [isAuthenticated, syncPresenceHeartbeat, removeMyPresence]);
 
-  // Multi-tab Storage Event Listener for Shared Database
+  // Notify when a new member connects
+  const handleNewMemberConnected = useCallback((member: { id: string; name: string; initials: string; color: string }) => {
+    if (!isAuthenticated || member.id === currentUser.id) return;
+    
+    // Play chime audio
+    playUserJoinedSound();
+
+    // Show visual banner/toast
+    setConnectionToast({
+      id: Date.now(),
+      memberName: member.name,
+      memberInitials: member.initials,
+      memberColor: member.color,
+      timestamp: Date.now(),
+    });
+  }, [isAuthenticated, currentUser.id]);
+
+  // Multi-tab Storage Event Listener for Shared Database & Presence
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (!e.key) return;
@@ -295,14 +371,27 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setTeam(loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM));
       } else if (e.key === STORAGE_KEYS.ACTIVE_PRESENCES) {
         const presences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-        const valid = presences.filter(p => Date.now() - p.lastHeartbeat < 12000);
+        const valid = presences.filter(p => Date.now() - p.lastHeartbeat < 10000);
         setActivePresences(valid);
+
+        // Check for new member connecting
+        valid.forEach(p => {
+          if (p.memberId !== currentUser.id && !knownOnlineMembersRef.current.has(p.memberId)) {
+            knownOnlineMembersRef.current.add(p.memberId);
+            handleNewMemberConnected({
+              id: p.memberId,
+              name: p.memberName,
+              initials: p.memberInitials,
+              color: p.memberColor,
+            });
+          }
+        });
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [currentUser.id, handleNewMemberConnected]);
 
   // Broadcast channel message handler
   useEffect(() => {
@@ -312,11 +401,28 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const data = event.data;
       if (!data) return;
 
-      if (data.type === 'HEARTBEAT' && data.presence) {
+      if ((data.type === 'HEARTBEAT' || data.type === 'USER_LOGIN') && data.presence) {
         const presence: ActiveUserPresence = data.presence;
+
+        // Check if this is a newly connected other user
+        if (presence.memberId !== currentUser.id) {
+          if (!knownOnlineMembersRef.current.has(presence.memberId) || data.type === 'USER_LOGIN') {
+            knownOnlineMembersRef.current.add(presence.memberId);
+            handleNewMemberConnected({
+              id: presence.memberId,
+              name: presence.memberName,
+              initials: presence.memberInitials,
+              color: presence.memberColor,
+            });
+          }
+        }
+
         setActivePresences(prev => {
           const now = Date.now();
-          const filtered = prev.filter(p => p.memberId !== presence.memberId && now - p.lastHeartbeat < 12000);
+          const filtered = prev.filter(p => {
+            const isSame = p.tabId && presence.tabId ? p.tabId === presence.tabId : p.memberId === presence.memberId;
+            return !isSame && now - p.lastHeartbeat < 10000;
+          });
           return [...filtered, presence];
         });
 
@@ -333,6 +439,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       if (data.type === 'USER_LOGOUT' && data.memberId) {
+        knownOnlineMembersRef.current.delete(data.memberId);
         setActivePresences(prev => prev.filter(p => p.memberId !== data.memberId));
       }
 
@@ -350,20 +457,32 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     broadcastChannel.addEventListener('message', handleMessage);
     return () => broadcastChannel.removeEventListener('message', handleMessage);
-  }, [broadcastChannel, currentUser, currentEditingItem]);
+  }, [broadcastChannel, currentUser, currentEditingItem, handleNewMemberConnected]);
 
-  // Clean stale presences every 4 seconds
+  // Clean stale presences every 3 seconds
   useEffect(() => {
     const cleaner = setInterval(() => {
       const now = Date.now();
-      const threshold = now - 12000;
+      const threshold = now - 10000;
       setActivePresences(prev => {
         const filtered = prev.filter(p => p.lastHeartbeat > threshold);
+        // Sync known members
+        const activeIds = new Set(filtered.map(p => p.memberId));
+        knownOnlineMembersRef.current = activeIds;
         return filtered;
       });
-    }, 4000);
+    }, 3000);
     return () => clearInterval(cleaner);
   }, []);
+
+  // Auto-dismiss toast after 5s
+  useEffect(() => {
+    if (!connectionToast) return;
+    const timer = setTimeout(() => {
+      setConnectionToast(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [connectionToast]);
 
   // Login
   const login = useCallback((memberId: string, passwordInput: string) => {
@@ -387,6 +506,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     lastSavedActivityRef.current = now;
     saveToStorage(STORAGE_KEYS.LAST_ACTIVITY, now);
 
+    // Save in sessionStorage (tab isolated) + localStorage
+    try {
+      sessionStorage.setItem('unke_session_current_user_id', member.id);
+      sessionStorage.setItem('unke_session_auth', JSON.stringify(true));
+    } catch {
+      // ignore
+    }
+
     setCurrentUserId(member.id);
     saveToStorage(STORAGE_KEYS.CURRENT_USER_ID, member.id);
     setIsAuthenticated(true);
@@ -396,6 +523,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Register presence immediately
     const currentPresence: ActiveUserPresence = {
+      tabId: tabIdRef.current,
       memberId: member.id,
       memberName: member.name,
       memberInitials: member.initials,
@@ -406,16 +534,31 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       lastHeartbeat: now,
     };
     const storedPresences = loadFromStorage<ActiveUserPresence[]>(STORAGE_KEYS.ACTIVE_PRESENCES, []);
-    const updatedPresences = [...storedPresences.filter(p => p.memberId !== member.id), currentPresence];
+    const updatedPresences = [
+      ...storedPresences.filter(p => (p.tabId ? p.tabId !== tabIdRef.current : p.memberId !== member.id)),
+      currentPresence,
+    ];
     saveToStorage(STORAGE_KEYS.ACTIVE_PRESENCES, updatedPresences);
     setActivePresences(updatedPresences);
 
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({
+        type: 'USER_LOGIN',
+        presence: currentPresence,
+      });
+    }
+
     return { success: true };
-  }, [team]);
+  }, [team, broadcastChannel]);
 
   // Logout
   const logout = useCallback(() => {
     removeMyPresence();
+    try {
+      sessionStorage.removeItem('unke_session_auth');
+    } catch {
+      // ignore
+    }
     setIsAuthenticated(false);
     saveToStorage(STORAGE_KEYS.AUTH_SESSION, false);
     setActiveTab('dashboard');
@@ -1038,6 +1181,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         startEditingItem,
         stopEditingItem,
         otherEditorWarning,
+        connectionToast,
+        dismissConnectionToast,
+        playNotificationChime,
         clients,
         addClient,
         updateClient,

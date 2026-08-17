@@ -43,10 +43,19 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   // List of all connected/active members
-  const connectedMembers = team.filter(m => {
-    if (isAuthenticated && m.id === currentUser.id) return true;
-    return activePresences.some(p => p.memberId === m.id);
-  });
+  const connectedMembers = React.useMemo(() => {
+    const activeMemberIds = new Set<string>();
+    if (isAuthenticated && currentUser?.id) {
+      activeMemberIds.add(currentUser.id);
+    }
+    const now = Date.now();
+    activePresences.forEach(p => {
+      if (p.lastHeartbeat && now - p.lastHeartbeat < 10000) {
+        activeMemberIds.add(p.memberId);
+      }
+    });
+    return team.filter(m => activeMemberIds.has(m.id));
+  }, [team, isAuthenticated, currentUser?.id, activePresences]);
 
   const getMemberBgColor = (memberId: string) => {
     switch (memberId) {
@@ -145,13 +154,16 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onOpenTeamModal}
                 className="flex items-center p-1 sm:p-1.5 rounded-xl bg-[#141414] hover:bg-[#2a2a2a] border border-[#777777]/25 hover:border-[#34877c]/40 transition-all group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c] cursor-pointer"
-                title={`En línea: ${connectedMembers.map(m => m.name).join(', ')}. Clic para cambiar de usuario o ver equipo.`}
+                title={`Integrantes en línea (${connectedMembers.length}): ${connectedMembers.map(m => m.name).join(', ')}. Clic para cambiar de usuario o ver equipo.`}
               >
                 {/* Avatars of all connected users */}
                 <div className="flex items-center -space-x-1.5">
                   {connectedMembers.map((m, idx) => {
                     const isCurrent = m.id === currentUser.id;
                     const zIndexStyle = { zIndex: 30 - idx };
+                    const presence = activePresences.find(p => p.memberId === m.id);
+                    const viewLabel = presence?.currentView ? ` • Viendo ${presence.currentView}` : '';
+
                     return (
                       <div
                         key={m.id}
@@ -159,11 +171,11 @@ export const Header: React.FC<HeaderProps> = ({
                         className={`relative w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-[#202020] shadow-md transition-transform group-hover:scale-105 shrink-0 ${getMemberBgColor(
                           m.id
                         )}`}
-                        title={`${m.name} (${isCurrent ? 'Tu sesión' : 'En línea'})`}
+                        title={`${m.name} (${isCurrent ? 'Tu sesión actual' : 'Conectado en vivo'}${viewLabel})`}
                       >
                         {m.initials}
                         {/* Active Pulse Green Dot */}
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#202020] animate-pulse" />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#202020] animate-pulse" />
                       </div>
                     );
                   })}

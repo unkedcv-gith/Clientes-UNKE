@@ -528,17 +528,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Bento Tile 5: Registro de Actividad Reciente (Span 4) */}
+        {/* Bento Tile 5: Registro de Actividad Reciente & Integrantes en vivo (Span 4) */}
         <div className="md:col-span-4 bg-[#202020] rounded-3xl p-5 border border-[#777777]/15 flex flex-col justify-between shadow-lg">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-[#34877c]" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Actividad Reciente
+                  Actividad & Equipo
                 </h3>
               </div>
-              <span className="text-[10px] text-[#777777] font-mono">Sincronizado</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                En vivo
+              </span>
+            </div>
+
+            {/* Team live presence strip */}
+            <div className="mb-3 p-2.5 bg-[#141414] rounded-2xl border border-[#777777]/15 flex items-center justify-between gap-2">
+              <div className="text-[10px] font-bold text-[#888888] uppercase tracking-wider">
+                Presencia
+              </div>
+              <div className="flex items-center gap-2">
+                {team.map(m => {
+                  const isCurrent = m.id === currentUser.id;
+                  const now = Date.now();
+                  const isOnline = isCurrent || activePresences.some(p => p.memberId === m.id && now - p.lastHeartbeat < 10000);
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-1 text-[11px]"
+                      title={`${m.name}: ${isOnline ? 'En línea' : 'Desconectado'}`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-[#555555]'
+                        }`}
+                      />
+                      <span className={`text-[10px] font-bold ${isOnline ? 'text-white' : 'text-[#666666]'}`}>
+                        {m.name.split(' ')[0]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-3">
