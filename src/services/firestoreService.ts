@@ -28,6 +28,26 @@ const TEAM_COLLECTION = 'team';
 const PRESENCES_COLLECTION = 'presences';
 const SETTINGS_COLLECTION = 'settings';
 
+/**
+ * Strips undefined properties recursively so Firestore does not reject the document write
+ */
+function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj as any)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
+}
+
 export const FirestoreService = {
   // --- REALTIME SUBSCRIBERS ---
 
@@ -79,9 +99,10 @@ export const FirestoreService = {
     return onSnapshot(
       collection(db, AUDIT_LOGS_COLLECTION),
       snapshot => {
-        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
-        // Sort descending by timestamp
-        items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const items = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() } as AuditLogItem))
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 100);
         callback(items);
       },
       error => console.error('Error in audit logs snapshot:', error)
@@ -143,7 +164,8 @@ export const FirestoreService = {
 
   async saveClient(client: Client) {
     try {
-      await setDoc(doc(db, CLIENTS_COLLECTION, client.id), client);
+      const sanitized = sanitizeForFirestore(client);
+      await setDoc(doc(db, CLIENTS_COLLECTION, client.id), sanitized);
     } catch (err) {
       console.error('Error saving client to Firestore:', err);
     }
@@ -159,7 +181,8 @@ export const FirestoreService = {
 
   async saveProject(project: Project) {
     try {
-      await setDoc(doc(db, PROJECTS_COLLECTION, project.id), project);
+      const sanitized = sanitizeForFirestore(project);
+      await setDoc(doc(db, PROJECTS_COLLECTION, project.id), sanitized);
     } catch (err) {
       console.error('Error saving project to Firestore:', err);
     }
@@ -175,7 +198,8 @@ export const FirestoreService = {
 
   async saveBudget(budget: Budget) {
     try {
-      await setDoc(doc(db, BUDGETS_COLLECTION, budget.id), budget);
+      const sanitized = sanitizeForFirestore(budget);
+      await setDoc(doc(db, BUDGETS_COLLECTION, budget.id), sanitized);
     } catch (err) {
       console.error('Error saving budget to Firestore:', err);
     }
@@ -191,7 +215,8 @@ export const FirestoreService = {
 
   async savePostIt(postIt: PostIt) {
     try {
-      await setDoc(doc(db, POSTITS_COLLECTION, postIt.id), postIt);
+      const sanitized = sanitizeForFirestore(postIt);
+      await setDoc(doc(db, POSTITS_COLLECTION, postIt.id), sanitized);
     } catch (err) {
       console.error('Error saving post-it to Firestore:', err);
     }
@@ -207,7 +232,8 @@ export const FirestoreService = {
 
   async saveAuditLog(log: AuditLogItem) {
     try {
-      await setDoc(doc(db, AUDIT_LOGS_COLLECTION, log.id), log);
+      const sanitized = sanitizeForFirestore(log);
+      await setDoc(doc(db, AUDIT_LOGS_COLLECTION, log.id), sanitized);
     } catch (err) {
       console.error('Error saving audit log to Firestore:', err);
     }
@@ -215,7 +241,8 @@ export const FirestoreService = {
 
   async saveTeamMember(member: TeamMember) {
     try {
-      await setDoc(doc(db, TEAM_COLLECTION, member.id), member);
+      const sanitized = sanitizeForFirestore(member);
+      await setDoc(doc(db, TEAM_COLLECTION, member.id), sanitized);
     } catch (err) {
       console.error('Error saving team member to Firestore:', err);
     }
@@ -223,7 +250,8 @@ export const FirestoreService = {
 
   async saveStudioBank(bank: any) {
     try {
-      await setDoc(doc(db, SETTINGS_COLLECTION, 'bank_details'), bank);
+      const sanitized = sanitizeForFirestore(bank);
+      await setDoc(doc(db, SETTINGS_COLLECTION, 'bank_details'), sanitized);
     } catch (err) {
       console.error('Error saving bank details to Firestore:', err);
     }
@@ -231,7 +259,8 @@ export const FirestoreService = {
 
   async saveUserBanks(userBanks: Record<string, any>) {
     try {
-      await setDoc(doc(db, SETTINGS_COLLECTION, 'user_banks'), userBanks);
+      const sanitized = sanitizeForFirestore(userBanks);
+      await setDoc(doc(db, SETTINGS_COLLECTION, 'user_banks'), sanitized);
     } catch (err) {
       console.error('Error saving user banks to Firestore:', err);
     }
@@ -239,9 +268,9 @@ export const FirestoreService = {
 
   async savePresence(presence: ActiveUserPresence) {
     try {
-      // Use memberId + tabId as doc ID so multiple devices/tabs of same or different members register accurately
+      const sanitized = sanitizeForFirestore(presence);
       const docId = `${presence.memberId}_${presence.tabId || 'tab'}`;
-      await setDoc(doc(db, PRESENCES_COLLECTION, docId), presence);
+      await setDoc(doc(db, PRESENCES_COLLECTION, docId), sanitized);
     } catch (err) {
       console.error('Error saving presence to Firestore:', err);
     }
@@ -274,27 +303,27 @@ export const FirestoreService = {
       const batch = writeBatch(db);
 
       localData.clients.forEach(c => {
-        batch.set(doc(db, CLIENTS_COLLECTION, c.id), c);
+        batch.set(doc(db, CLIENTS_COLLECTION, c.id), sanitizeForFirestore(c));
       });
 
       localData.projects.forEach(p => {
-        batch.set(doc(db, PROJECTS_COLLECTION, p.id), p);
+        batch.set(doc(db, PROJECTS_COLLECTION, p.id), sanitizeForFirestore(p));
       });
 
       localData.budgets.forEach(b => {
-        batch.set(doc(db, BUDGETS_COLLECTION, b.id), b);
+        batch.set(doc(db, BUDGETS_COLLECTION, b.id), sanitizeForFirestore(b));
       });
 
       localData.postIts.forEach(post => {
-        batch.set(doc(db, POSTITS_COLLECTION, post.id), post);
+        batch.set(doc(db, POSTITS_COLLECTION, post.id), sanitizeForFirestore(post));
       });
 
       localData.team.forEach(t => {
-        batch.set(doc(db, TEAM_COLLECTION, t.id), t);
+        batch.set(doc(db, TEAM_COLLECTION, t.id), sanitizeForFirestore(t));
       });
 
       if (localData.studioBank) {
-        batch.set(doc(db, SETTINGS_COLLECTION, 'bank_details'), localData.studioBank);
+        batch.set(doc(db, SETTINGS_COLLECTION, 'bank_details'), sanitizeForFirestore(localData.studioBank));
       }
 
       await batch.commit();

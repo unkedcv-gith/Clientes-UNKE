@@ -638,6 +638,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setClients(prev => {
+      const next = [newClient, ...prev.filter(c => c.id !== newClient.id)];
+      saveToStorage(STORAGE_KEYS.CLIENTS, next);
+      return next;
+    });
     FirestoreService.saveClient(newClient);
     addAuditLog('creó', 'cliente', newClient.id, `Creó el cliente "${newClient.name}"`);
     return newClient;
@@ -653,12 +658,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setClients(prev => {
+      const next = prev.map(c => (c.id === id ? updated : c));
+      saveToStorage(STORAGE_KEYS.CLIENTS, next);
+      return next;
+    });
     FirestoreService.saveClient(updated);
     addAuditLog('editó', 'cliente', id, `Actualizó datos del cliente`);
   }, [clients, currentUser, addAuditLog]);
 
   const deleteClient = useCallback((id: string) => {
     const target = clients.find(c => c.id === id);
+    setClients(prev => {
+      const next = prev.filter(c => c.id !== id);
+      saveToStorage(STORAGE_KEYS.CLIENTS, next);
+      return next;
+    });
     FirestoreService.deleteClient(id);
     if (target) {
       addAuditLog('eliminó', 'cliente', id, `Eliminó el cliente "${target.name}"`);
@@ -681,6 +696,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
+    setProjects(prev => {
+      const next = [newProject, ...prev.filter(p => p.id !== newProject.id)];
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
+
     FirestoreService.saveProject(newProject);
     addAuditLog(
       'creó',
@@ -701,12 +722,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setProjects(prev => {
+      const next = prev.map(p => (p.id === id ? updated : p));
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
     FirestoreService.saveProject(updated);
     addAuditLog('editó', 'proyecto', id, `Actualizó proyecto`);
   }, [projects, currentUser, addAuditLog]);
 
   const deleteProject = useCallback((id: string) => {
     const target = projects.find(p => p.id === id);
+    setProjects(prev => {
+      const next = prev.filter(p => p.id !== id);
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
     FirestoreService.deleteProject(id);
     if (target) {
       addAuditLog('eliminó', 'proyecto', id, `Eliminó el proyecto "${target.title}"`);
@@ -726,6 +757,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setProjects(prev => {
+      const next = prev.map(proj => (proj.id === projectId ? updated : proj));
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
     FirestoreService.saveProject(updated);
   }, [projects, currentUser]);
 
@@ -757,6 +793,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setProjects(prev => {
+      const next = prev.map(proj => (proj.id === projectId ? updated : proj));
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
     FirestoreService.saveProject(updated);
     addAuditLog('registró pago', 'proyecto', projectId, `Registró pago por $ ${amount.toLocaleString('es-AR')}`);
   }, [projects, currentUser, addAuditLog]);
@@ -776,6 +817,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setProjects(prev => {
+      const next = prev.map(proj => (proj.id === projectId ? updated : proj));
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
     FirestoreService.saveProject(updated);
   }, [projects, currentUser]);
 
@@ -795,6 +841,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
+    setBudgets(prev => {
+      const next = [newBudget, ...prev.filter(b => b.id !== newBudget.id)];
+      saveToStorage(STORAGE_KEYS.BUDGETS, next);
+      return next;
+    });
     FirestoreService.saveBudget(newBudget);
     addAuditLog('creó', 'presupuesto', newBudget.id, `Creó el presupuesto ${newBudget.number} para ${newBudget.clientName}`);
     return newBudget;
@@ -810,12 +861,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser.name,
     };
+    setBudgets(prev => {
+      const next = prev.map(b => (b.id === id ? updated : b));
+      saveToStorage(STORAGE_KEYS.BUDGETS, next);
+      return next;
+    });
     FirestoreService.saveBudget(updated);
     addAuditLog('editó', 'presupuesto', id, `Actualizó presupuesto`);
   }, [budgets, currentUser, addAuditLog]);
 
   const deleteBudget = useCallback((id: string) => {
     const target = budgets.find(b => b.id === id);
+    setBudgets(prev => {
+      const next = prev.filter(b => b.id !== id);
+      saveToStorage(STORAGE_KEYS.BUDGETS, next);
+      return next;
+    });
     FirestoreService.deleteBudget(id);
     if (target) {
       addAuditLog('eliminó', 'presupuesto', id, `Eliminó el presupuesto ${target.number}`);
@@ -843,6 +904,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
+    setBudgets(prev => {
+      const next = [duplicated, ...prev.filter(b => b.id !== duplicated.id)];
+      saveToStorage(STORAGE_KEYS.BUDGETS, next);
+      return next;
+    });
     FirestoreService.saveBudget(duplicated);
     addAuditLog('creó', 'presupuesto', duplicated.id, `Duplicó presupuesto ${original.number} como ${duplicated.number}`);
     return duplicated;
@@ -898,6 +964,18 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBy: currentUser.name,
     };
 
+    setProjects(prev => {
+      const next = [newProject, ...prev.filter(p => p.id !== newProject.id)];
+      saveToStorage(STORAGE_KEYS.PROJECTS, next);
+      return next;
+    });
+
+    setBudgets(prev => {
+      const next = prev.map(b => (b.id === budgetId ? updatedBudget : b));
+      saveToStorage(STORAGE_KEYS.BUDGETS, next);
+      return next;
+    });
+
     FirestoreService.saveProject(newProject);
     FirestoreService.saveBudget(updatedBudget);
 
@@ -920,6 +998,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    setPostIts(prev => {
+      const next = [newNote, ...prev.filter(n => n.id !== newNote.id)];
+      saveToStorage(STORAGE_KEYS.POSTITS, next);
+      return next;
+    });
     FirestoreService.savePostIt(newNote);
     addAuditLog('creó', 'nota', newNote.id, `Agregó la nota rápida "${newNote.title}"`);
     return newNote;
@@ -934,10 +1017,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...data,
       updatedAt: new Date().toISOString(),
     };
+    setPostIts(prev => {
+      const next = prev.map(n => (n.id === id ? updated : n));
+      saveToStorage(STORAGE_KEYS.POSTITS, next);
+      return next;
+    });
     FirestoreService.savePostIt(updated);
   }, [postIts]);
 
   const deletePostIt = useCallback((id: string) => {
+    setPostIts(prev => {
+      const next = prev.filter(n => n.id !== id);
+      saveToStorage(STORAGE_KEYS.POSTITS, next);
+      return next;
+    });
     FirestoreService.deletePostIt(id);
   }, []);
 
