@@ -102,12 +102,12 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#202020] rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#777777]/25 space-y-5 my-8 text-white">
+      <div className="bg-[#1a1a1a] rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-[#777777]/20 space-y-4 my-auto max-h-[94vh] overflow-y-auto text-white">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#777777]/20 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#34877c]/15 text-[#34877c]">
-              <Database className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
+              <Database className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
@@ -120,7 +120,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
           </div>
           <button
             onClick={onClose}
-            className="text-[#777777] hover:text-white p-1 rounded-lg transition-colors"
+            className="text-[#777777] hover:text-white p-1.5 rounded-lg hover:bg-[#282828] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -162,7 +162,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
         </div>
 
         {/* Backup / Export Section */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
               Copias de Seguridad (Descargar / Restaurar)
@@ -175,7 +175,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={handleExport}
-              className="flex items-center justify-center gap-2 p-2.5 bg-[#141414] hover:bg-[#272727] border border-[#777777]/30 hover:border-[#34877c] rounded-xl text-xs font-bold text-white transition-all shadow-xs"
+              className="flex items-center justify-center gap-2 p-2.5 bg-[#141414] hover:bg-[#272727] border border-[#777777]/30 hover:border-[#34877c] rounded-xl text-xs font-bold text-white transition-all shadow-xs cursor-pointer"
             >
               <Download className="w-4 h-4 text-[#34877c]" />
               <span>Exportar Backup</span>
@@ -215,7 +215,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
             <div>
               <label className="block text-slate-300 mb-1">Banco</label>
               <input
@@ -242,7 +242,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
                 type="text"
                 value={cuit}
                 onChange={e => setCuit(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
               />
             </div>
 
@@ -262,14 +262,14 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
                 type="text"
                 value={cbu}
                 onChange={e => setCbu(e.target.value)}
-                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                className="w-full px-3 py-1.5 bg-[#141414] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
               />
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full py-2 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+            className="w-full py-2 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
           >
             Actualizar Datos Bancarios
           </button>
@@ -280,7 +280,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center gap-1.5 text-rose-400 hover:underline"
+            className="flex items-center gap-1.5 text-rose-400 hover:underline cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Limpiar / Vaciar base de datos</span>
@@ -288,7 +288,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#141414] hover:bg-[#2a2a2a] text-white rounded-xl font-medium border border-[#777777]/20 transition-colors"
+            className="px-4 py-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white rounded-xl font-medium border border-[#777777]/20 transition-colors cursor-pointer"
           >
             Cerrar
           </button>

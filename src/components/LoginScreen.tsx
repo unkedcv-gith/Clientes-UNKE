@@ -102,6 +102,15 @@ export const LoginScreen: React.FC = () => {
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {team.map(member => {
                 const isSelected = member.id === selectedMemberId;
+                const memberBgColor =
+                  member.id === 'member_nacho'
+                    ? 'bg-[#27655d]'
+                    : member.id === 'member_fede'
+                    ? 'bg-[#34877c]'
+                    : member.id === 'member_willy'
+                    ? 'bg-[#5d9f96]'
+                    : 'bg-[#34877c]';
+
                 return (
                   <button
                     key={member.id}
@@ -114,10 +123,10 @@ export const LoginScreen: React.FC = () => {
                     }`}
                   >
                     <div
-                      className={`w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-all mb-2 shadow-sm ${
+                      className={`w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-all mb-2 shadow-sm text-white ${memberBgColor} ${
                         isSelected
-                          ? 'bg-[#34877c] text-white ring-2 ring-teal-300'
-                          : 'bg-[#2a2a2a] text-[#aaaaaa] group-hover:bg-[#34877c]/20 group-hover:text-white'
+                          ? 'ring-2 ring-white scale-105'
+                          : 'opacity-85 group-hover:opacity-100 group-hover:scale-105'
                       }`}
                     >
                       {member.initials}

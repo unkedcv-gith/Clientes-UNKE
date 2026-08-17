@@ -263,37 +263,38 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 text-white">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Presupuestos & Propuestas Comerciales
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <FileText className="w-6 h-6 text-[#34877c]" />
+            <span>Presupuestos & Propuestas Comerciales</span>
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-[#888888]">
             Armado de cotizaciones en ARS, exportación instantánea en PDF y conversión directa a proyecto activo.
           </p>
         </div>
 
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 bg-[#34877c] hover:bg-[#276961] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#34877c]"
+          className="flex items-center gap-2 bg-[#34877c] hover:bg-[#2a6d63] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>Nuevo Presupuesto</span>
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-[#202020] p-3.5 sm:p-4 rounded-2xl border border-[#777777]/20 shadow-lg flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#777777]" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Buscar por cliente, título o Nº de presupuesto..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+            className="w-full pl-9 pr-4 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-white placeholder-[#777777] outline-none focus:border-[#34877c] transition-colors"
           />
         </div>
 
@@ -301,7 +302,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as 'all' | BudgetStatus)}
-            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+            className="px-3 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-slate-200 outline-none focus:border-[#34877c]"
           >
             <option value="all">Todos los Estados</option>
             <option value="borrador">Borrador</option>
@@ -313,7 +314,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value as 'all' | ProjectType)}
-            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+            className="px-3 py-2 bg-[#141414] border border-[#777777]/25 rounded-xl text-xs text-slate-200 outline-none focus:border-[#34877c]"
           >
             <option value="all">Todos los Tipos</option>
             <option value="proyecto">📦 Proyecto Puntual</option>
@@ -325,57 +326,57 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
       {/* Budgets List */}
       <div className="space-y-4">
         {filteredBudgets.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-12 text-center text-slate-400">
-            <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm font-medium">No se encontraron presupuestos.</p>
+          <div className="bg-[#202020] border border-[#777777]/20 rounded-2xl p-12 text-center text-[#777777] shadow-lg">
+            <FileText className="w-10 h-10 mx-auto mb-2 opacity-40 text-[#555555]" />
+            <p className="text-sm font-medium text-[#888888]">No se encontraron presupuestos.</p>
           </div>
         ) : (
           filteredBudgets.map(budget => (
             <div
               key={budget.id}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:border-[#34877c]/60 transition-all space-y-3"
+              className="bg-[#202020] rounded-2xl border border-[#777777]/20 p-5 sm:p-6 shadow-lg hover:border-[#34877c]/60 transition-all space-y-3"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span className="font-mono text-xs font-bold text-[#888888]">
                       {budget.number}
                     </span>
 
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-[#34877c]">
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-[#34877c]/15 text-[#34877c] border border-[#34877c]/30">
                       {budget.clientName}
                     </span>
 
                     {budget.projectType === 'mantenimiento' ? (
-                      <span className="text-[10px] uppercase font-bold text-sky-700 bg-sky-100 dark:bg-sky-950 dark:text-sky-300 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] uppercase font-bold text-sky-300 bg-sky-950/60 border border-sky-800 px-2 py-0.5 rounded-lg">
                         Abono Mensual
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] text-[#aaaaaa] bg-[#141414] border border-[#777777]/20 px-2 py-0.5 rounded-lg">
                         Puntual
                       </span>
                     )}
 
                     <span
-                      className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                      className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                         budget.status === 'aprobado'
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300'
+                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
                           : budget.status === 'enviado'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300'
+                          ? 'bg-blue-950 text-blue-300 border border-blue-700'
                           : budget.status === 'rechazado'
-                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300'
-                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300'
+                          ? 'bg-rose-950 text-rose-300 border border-rose-700'
+                          : 'bg-[#141414] text-slate-300 border border-[#777777]/30'
                       }`}
                     >
-                      {budget.status.toUpperCase()}
+                      {budget.status}
                     </span>
                   </div>
 
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-lg font-bold text-white tracking-tight">
                     {budget.title}
                   </h2>
 
-                  <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                  <div className="text-xs text-[#888888] flex items-center gap-3">
                     <span>Emisión: {formatDateAR(budget.date)}</span>
                     <span>•</span>
                     <span>Vencimiento: {formatDateAR(budget.validUntilDate)}</span>
@@ -384,10 +385,10 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
                 {/* Price and Actions */}
                 <div className="flex flex-col sm:items-end gap-2">
-                  <div className="text-xl font-bold text-slate-900 dark:text-white">
+                  <div className="text-xl font-black text-white font-mono">
                     {formatARS(budget.totalAmount)}
                     {budget.projectType === 'mantenimiento' && (
-                      <span className="text-xs text-slate-400 font-normal ml-1">/mes</span>
+                      <span className="text-xs text-sky-400 font-normal ml-1">/mes</span>
                     )}
                   </div>
 
@@ -396,7 +397,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     {!budget.convertedToProjectId && budget.status !== 'aprobado' && (
                       <button
                         onClick={() => handleConvertToProject(budget.id)}
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 transition-colors"
+                        className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/25 transition-all cursor-pointer"
                         title="Aprobar presupuesto y crear proyecto activo de trabajo automáticamente"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -405,7 +406,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     )}
 
                     {budget.convertedToProjectId && (
-                      <span className="text-[11px] text-emerald-600 font-semibold px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg">
+                      <span className="text-[11px] text-emerald-400 font-bold px-2.5 py-1 bg-emerald-950/40 border border-emerald-800 rounded-xl">
                         ✓ En ejecución activa
                       </span>
                     )}
@@ -413,7 +414,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     {/* PDF Generator Button */}
                     <button
                       onClick={() => generateBudgetPDF(budget)}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 bg-[#34877c]/10 hover:bg-[#34877c]/20 text-[#34877c] dark:text-[#44a598] rounded-lg transition-colors"
+                      className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-[#34877c]/20 hover:bg-[#34877c]/35 text-[#44a598] border border-[#34877c]/40 rounded-xl transition-all cursor-pointer"
                       title="Descargar presupuesto oficial en PDF con estética UNKE"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -423,7 +424,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     {/* View / Print Preview */}
                     <button
                       onClick={() => setPreviewBudget(budget)}
-                      className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
                       title="Ver vista previa de impresión"
                     >
                       <Printer className="w-3.5 h-3.5" />
@@ -432,7 +433,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     {/* Duplicate */}
                     <button
                       onClick={() => duplicateBudget(budget.id)}
-                      className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
                       title="Duplicar presupuesto"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -441,7 +442,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     {/* Edit */}
                     <button
                       onClick={() => handleOpenEdit(budget)}
-                      className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+                      className="p-1.5 bg-[#141414] hover:bg-[#282828] text-[#aaaaaa] hover:text-white border border-[#777777]/25 rounded-xl transition-colors cursor-pointer"
                       title="Editar"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -454,7 +455,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                           deleteBudget(budget.id);
                         }
                       }}
-                      className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                      className="p-1.5 bg-[#141414] hover:bg-rose-950/40 text-[#777777] hover:text-rose-400 border border-[#777777]/20 rounded-xl transition-colors cursor-pointer"
                       title="Eliminar"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -464,8 +465,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
               </div>
 
               {/* Items summary */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-2">
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="pt-2.5 border-t border-[#777777]/15 text-xs text-slate-300 space-y-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#aaaaaa]">
                   {budget.items.map((item, idx) => (
                     <span key={item.id || idx}>
                       • {item.description} ({formatARS(item.total)})
@@ -474,8 +475,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                 </div>
 
                 {budget.deliverablesClarification && (
-                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-2.5 border border-slate-200 dark:border-slate-700/60 mt-2 text-xs">
-                    <div className="font-bold text-[10px] uppercase tracking-wider text-[#34877c] dark:text-[#44a598] mb-1">
+                  <div className="bg-[#141414] rounded-xl p-3 border border-[#777777]/20 mt-2 text-xs">
+                    <div className="font-bold text-[10px] uppercase tracking-wider text-[#34877c] mb-1">
                       Aclaraciones & Alcance:
                     </div>
                     <FormattedClarificationText text={budget.deliverablesClarification} />
@@ -487,311 +488,343 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         )}
       </div>
 
-      {/* Modal: Create / Edit Budget */}
+      {/* Modal: Create / Edit Budget (Landscape / Wide 2-Column layout) */}
       {isFormModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 my-8">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {editingBudget ? `Editar ${editingBudget.number}` : 'Nuevo Presupuesto UNKE'}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cargado por: <strong className="text-slate-700 dark:text-slate-200">{currentUser.name}</strong>
-                </p>
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl max-w-5xl lg:max-w-6xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-[#777777]/20 my-auto max-h-[94vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#777777]/20 pb-3 mb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                    {editingBudget ? `Editar Presupuesto ${editingBudget.number}` : 'Nuevo Presupuesto Comercial'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-[#888888]">
+                    Confeccionado por: <strong className="text-slate-700 dark:text-slate-200">{currentUser.name}</strong>
+                  </p>
+                </div>
               </div>
               <button
                 onClick={handleCloseFormModal}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#282828] transition-colors cursor-pointer"
+                title="Cerrar formulario"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {otherEditorWarning && (
-              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 p-3 rounded-lg text-xs flex items-center gap-2">
+              <div className="mb-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 p-2.5 rounded-xl text-xs flex items-center gap-2 shrink-0">
                 <span>{otherEditorWarning}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveBudget} className="space-y-4">
-              {/* Type selection */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormProjectType('proyecto')}
-                  className={`p-2.5 rounded-xl border text-left text-xs ${
-                    formProjectType === 'proyecto'
-                      ? 'border-[#34877c] bg-teal-50/50 dark:bg-teal-950/30 text-teal-900 dark:text-teal-200 ring-2 ring-[#34877c]'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <div className="font-bold flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-[#34877c]" />
-                    <span>Presupuesto Cerrado (Puntual)</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormProjectType('mantenimiento')}
-                  className={`p-2.5 rounded-xl border text-left text-xs ${
-                    formProjectType === 'mantenimiento'
-                      ? 'border-[#34877c] bg-teal-50/50 dark:bg-teal-950/30 text-teal-900 dark:text-teal-200 ring-2 ring-[#34877c]'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <div className="font-bold flex items-center gap-1.5">
-                    <Repeat className="w-4 h-4 text-emerald-600" />
-                    <span>Presupuesto de Abono Mensual</span>
-                  </div>
-                </button>
-              </div>
-
-              {/* Client & Title */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Cliente *
+            <form onSubmit={handleSaveBudget} className="flex flex-col flex-1 min-h-0 overflow-y-auto pr-0.5 space-y-4">
+              {/* Wide 2-Column Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+                
+                {/* Column 1 (Left - 5 Cols on Desktop): General Proposal Details & Terms */}
+                <div className="lg:col-span-5 space-y-3.5">
+                  {/* Type selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Modalidad del Trabajo *
                     </label>
-                    {clients.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setFormClientId(formClientId === 'new' ? (clients[0]?.id || '') : 'new')}
-                        className="text-[10px] text-[#34877c] hover:underline font-semibold"
+                        onClick={() => setFormProjectType('proyecto')}
+                        className={`p-2 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          formProjectType === 'proyecto'
+                            ? 'border-[#34877c] bg-[#34877c]/10 text-[#34877c] dark:text-teal-200 ring-2 ring-[#34877c]'
+                            : 'border-slate-200 dark:border-[#777777]/30 text-slate-600 dark:text-[#888888] hover:border-slate-300 dark:hover:border-[#777777]/50'
+                        }`}
                       >
-                        {formClientId === 'new' ? 'Elegir existente' : '+ Nuevo cliente'}
+                        <div className="font-bold flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-[#34877c]" />
+                          <span className="truncate">Proyecto Puntual</span>
+                        </div>
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        onClick={() => setFormProjectType('mantenimiento')}
+                        className={`p-2 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          formProjectType === 'mantenimiento'
+                            ? 'border-[#34877c] bg-[#34877c]/10 text-[#34877c] dark:text-teal-200 ring-2 ring-[#34877c]'
+                            : 'border-slate-200 dark:border-[#777777]/30 text-slate-600 dark:text-[#888888] hover:border-slate-300 dark:hover:border-[#777777]/50'
+                        }`}
+                      >
+                        <div className="font-bold flex items-center gap-1.5">
+                          <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="truncate">Abono Mensual</span>
+                        </div>
+                      </button>
+                    </div>
                   </div>
-                  {clients.length === 0 || formClientId === 'new' ? (
-                    <input
-                      type="text"
-                      value={formNewClientName}
-                      onChange={e => setFormNewClientName(e.target.value)}
-                      placeholder="Nombre del cliente o empresa..."
-                      required
-                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
-                    />
-                  ) : (
-                    <select
-                      value={formClientId}
-                      onChange={e => {
-                        const cId = e.target.value;
-                        setFormClientId(cId);
-                        const sel = clients.find(c => c.id === cId);
-                        if (sel) setFormClientContact(sel.email || '');
-                      }}
-                      required
-                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
-                    >
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} {c.company ? `(${c.company})` : ''}
-                        </option>
-                      ))}
-                      <option value="new">+ Crear nuevo cliente...</option>
-                    </select>
-                  )}
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Título de la Propuesta *
-                  </label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
-                    placeholder="Ej. Diseño y Desarrollo Web Ecommerce"
-                    required
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
-                  />
-                </div>
-              </div>
-
-              {/* Dates & Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Fecha de Emisión
-                  </label>
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={e => setFormDate(e.target.value)}
-                    required
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Válido hasta
-                  </label>
-                  <input
-                    type="date"
-                    value={formValidUntilDate}
-                    onChange={e => setFormValidUntilDate(e.target.value)}
-                    required
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Estado
-                  </label>
-                  <select
-                    value={formStatus}
-                    onChange={e => setFormStatus(e.target.value as BudgetStatus)}
-                    className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="borrador">Borrador</option>
-                    <option value="enviado">Enviado</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="rechazado">Rechazado</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Items Table Builder */}
-              <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Conceptos & Entregables cotizados
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="flex items-center gap-1 text-xs font-semibold text-[#34877c] dark:text-[#44a598] hover:underline"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Agregar Fila</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {formItems.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-12 gap-2 items-center bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-700"
-                    >
-                      <div className="col-span-6">
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={e =>
-                            handleItemChange(item.id, 'description', e.target.value)
-                          }
-                          placeholder={`Concepto #${idx + 1}...`}
-                          required
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-
-                      <div className="col-span-2">
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={e =>
-                            handleItemChange(item.id, 'quantity', e.target.value)
-                          }
-                          placeholder="Cant."
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 text-center"
-                        />
-                      </div>
-
-                      <div className="col-span-3">
-                        <input
-                          type="text"
-                          value={item.unitPrice}
-                          onChange={e =>
-                            handleItemChange(item.id, 'unitPrice', e.target.value)
-                          }
-                          placeholder="P. Unit ($ ARS)"
-                          required
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 text-right"
-                        />
-                      </div>
-
-                      <div className="col-span-1 text-center">
+                  {/* Client Selector or Input */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Cliente *
+                      </label>
+                      {clients.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          disabled={formItems.length === 1}
-                          className="text-slate-400 hover:text-rose-500 disabled:opacity-30"
+                          onClick={() => setFormClientId(formClientId === 'new' ? (clients[0]?.id || '') : 'new')}
+                          className="text-[10px] text-[#34877c] hover:underline font-semibold cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                          {formClientId === 'new' ? 'Elegir existente' : '+ Nuevo cliente'}
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    {clients.length === 0 || formClientId === 'new' ? (
+                      <input
+                        type="text"
+                        value={formNewClientName}
+                        onChange={e => setFormNewClientName(e.target.value)}
+                        placeholder="Nombre del cliente o empresa..."
+                        required
+                        className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                      />
+                    ) : (
+                      <select
+                        value={formClientId}
+                        onChange={e => {
+                          const cId = e.target.value;
+                          setFormClientId(cId);
+                          const sel = clients.find(c => c.id === cId);
+                          if (sel) setFormClientContact(sel.email || '');
+                        }}
+                        required
+                        className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
+                      >
+                        {clients.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.company ? `(${c.company})` : ''}
+                          </option>
+                        ))}
+                        <option value="new">+ Crear nuevo cliente...</option>
+                      </select>
+                    )}
+                  </div>
 
-                {/* Subtotal and Discount Bar */}
-                <div className="pt-2 flex flex-col sm:flex-row items-end sm:items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-600 dark:text-slate-400">Descuento aplicado (%):</span>
+                  {/* Proposal Title */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Título de la Propuesta *
+                    </label>
                     <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={formDiscount}
-                      onChange={e => setFormDiscount(Number(e.target.value))}
-                      className="w-16 text-xs px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-center"
+                      type="text"
+                      value={formTitle}
+                      onChange={e => setFormTitle(e.target.value)}
+                      placeholder="Ej. Rediseño Web & Branding Institucional"
+                      required
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34877c]"
                     />
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-slate-500 mr-2">Total Final en ARS:</span>
-                    <span className="text-base font-bold text-[#34877c] dark:text-[#44a598]">
-                      {formatARS(calculatedTotal)}
-                    </span>
+                  {/* Dates & Status Grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Emisión
+                      </label>
+                      <input
+                        type="date"
+                        value={formDate}
+                        onChange={e => setFormDate(e.target.value)}
+                        required
+                        className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Válido hasta
+                      </label>
+                      <input
+                        type="date"
+                        value={formValidUntilDate}
+                        onChange={e => setFormValidUntilDate(e.target.value)}
+                        required
+                        className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Estado
+                      </label>
+                      <select
+                        value={formStatus}
+                        onChange={e => setFormStatus(e.target.value as BudgetStatus)}
+                        className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="borrador">Borrador</option>
+                        <option value="enviado">Enviado</option>
+                        <option value="aprobado">Aprobado</option>
+                        <option value="rechazado">Rechazado</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Commercial Terms & Payment notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Condiciones comerciales y formas de pago
+                    </label>
+                    <textarea
+                      value={formNotes}
+                      onChange={e => setFormNotes(e.target.value)}
+                      rows={3}
+                      placeholder="Condiciones de pago (ej. 50% anticipo y 50% contra entrega)..."
+                      className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-xl text-slate-800 dark:text-slate-200 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                    />
                   </div>
                 </div>
 
-                {/* Free Text Clarification / Detailed Deliverables Scope */}
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                  <FormattedClarificationEditor
-                    value={formDeliverablesClarification}
-                    onChange={setFormDeliverablesClarification}
-                    label="Aclaraciones & Alcance Detallado de Entregables (Opcional)"
-                    placeholder="Escribí aclaraciones sobre los entregables cotizados (ej: qué incluye, formatos de entrega, cantidad de revisiones, qué no incluye)..."
-                    helperText="Podés usar la barra superior para aplicar Negrita, Cursiva, Viñetas (•) o separar en Párrafos."
-                  />
+                {/* Column 2 (Right - 7 Cols on Desktop): Items Table & Formatted Scope Clarifications */}
+                <div className="lg:col-span-7 space-y-3.5">
+                  {/* Items Table Builder */}
+                  <div className="border border-slate-200 dark:border-[#777777]/20 rounded-2xl p-3.5 bg-slate-50/70 dark:bg-[#141414]/90 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Conceptos & Entregables cotizados
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="flex items-center gap-1 text-xs font-bold text-[#34877c] hover:text-[#276961] dark:hover:text-[#44a598] transition-colors cursor-pointer"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>+ Agregar Fila</span>
+                      </button>
+                    </div>
+
+                    {/* Table headers */}
+                    <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-slate-500 dark:text-[#777777] px-1">
+                      <div className="col-span-6">DESCRIPCIÓN / SERVICIO</div>
+                      <div className="col-span-2 text-center">CANT.</div>
+                      <div className="col-span-3 text-right">PRECIO ($ ARS)</div>
+                      <div className="col-span-1 text-center"></div>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                      {formItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className="grid grid-cols-12 gap-2 items-center bg-white dark:bg-[#202020] p-1.5 rounded-xl border border-slate-200 dark:border-[#777777]/20 shadow-xs"
+                        >
+                          <div className="col-span-6">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={e =>
+                                handleItemChange(item.id, 'description', e.target.value)
+                              }
+                              placeholder={`Concepto #${idx + 1}...`}
+                              required
+                              className="w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <input
+                              type="number"
+                              min={1}
+                              value={item.quantity}
+                              onChange={e =>
+                                handleItemChange(item.id, 'quantity', e.target.value)
+                              }
+                              placeholder="Cant."
+                              className="w-full text-xs px-2 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200 text-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                            />
+                          </div>
+
+                          <div className="col-span-3">
+                            <input
+                              type="text"
+                              value={item.unitPrice}
+                              onChange={e =>
+                                handleItemChange(item.id, 'unitPrice', e.target.value)
+                              }
+                              placeholder="$ ARS"
+                              required
+                              className="w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200 text-right font-mono font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#34877c]"
+                            />
+                          </div>
+
+                          <div className="col-span-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              disabled={formItems.length === 1}
+                              className="p-1 text-slate-400 hover:text-rose-500 disabled:opacity-20 transition-colors cursor-pointer"
+                              title="Eliminar fila"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Subtotal and Discount Bar */}
+                    <div className="pt-2 flex flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-[#777777]/20 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-600 dark:text-[#888888] text-[11px]">Descuento (%):</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={formDiscount}
+                          onChange={e => setFormDiscount(Number(e.target.value))}
+                          className="w-14 text-xs px-2 py-1 bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-center font-bold"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 text-right">
+                        <span className="text-slate-500 dark:text-[#888888] text-[11px]">Total Final:</span>
+                        <span className="text-base sm:text-lg font-black text-[#34877c] font-mono">
+                          {formatARS(calculatedTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Free Text Clarification / Detailed Deliverables Scope */}
+                  <div className="border border-slate-200 dark:border-[#777777]/20 rounded-2xl p-3 bg-slate-50/70 dark:bg-[#141414]/90">
+                    <FormattedClarificationEditor
+                      value={formDeliverablesClarification}
+                      onChange={setFormDeliverablesClarification}
+                      label="Aclaraciones & Alcance Detallado de Entregables (Opcional)"
+                      placeholder="Escribí aclaraciones sobre los entregables cotizados (ej: qué incluye, formatos de entrega, cantidad de revisiones, qué no incluye)..."
+                      helperText="Podés usar la barra para aplicar Negrita, Cursiva, Viñetas (•) o separar en Párrafos."
+                    />
+                  </div>
                 </div>
+
               </div>
 
-              {/* Terms and conditions */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Condiciones comerciales y formas de pago
-                </label>
-                <textarea
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                  rows={2}
-                  className="w-full text-xs px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
+              {/* Modal Footer / Action Buttons */}
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-[#777777]/20 pt-3 mt-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseFormModal}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-[#aaaaaa] hover:bg-slate-100 dark:hover:bg-[#282828] transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                  className="px-6 py-2.5 bg-[#34877c] hover:bg-[#276961] text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
                 >
-                  {editingBudget ? 'Guardar Presupuesto' : 'Crear Presupuesto'}
+                  {editingBudget ? 'Guardar Cambios' : 'Crear Presupuesto'}
                 </button>
               </div>
             </form>

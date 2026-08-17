@@ -55,32 +55,33 @@ export const CalendarView: React.FC = () => {
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 text-white">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Calendario de Entregas & Cobros
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <CalendarIcon className="w-6 h-6 text-[#34877c]" />
+            <span>Calendario de Entregas & Cobros</span>
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-[#888888]">
             Cronograma visual de fechas límite de proyectos y días de cobro de abonos mensuales.
           </p>
         </div>
 
         {/* Month Navigation */}
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="flex items-center gap-3 bg-[#202020] p-1.5 rounded-2xl border border-[#777777]/20 shadow-lg">
           <button
             onClick={handlePrevMonth}
-            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl text-[#777777] hover:text-white hover:bg-[#141414] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[140px] text-center">
+          <span className="text-sm font-bold text-white min-w-[140px] text-center uppercase tracking-wide">
             {monthNames[currentMonth]} {currentYear}
           </span>
           <button
             onClick={handleNextMonth}
-            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl text-[#777777] hover:text-white hover:bg-[#141414] transition-colors cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -88,9 +89,9 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="bg-[#202020] rounded-2xl border border-[#777777]/20 shadow-lg overflow-hidden">
         {/* Days of week header */}
-        <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-400 bg-slate-50 dark:bg-slate-800/40 py-2.5">
+        <div className="grid grid-cols-7 border-b border-[#777777]/15 text-center text-xs font-bold text-[#888888] bg-[#141414] py-3 tracking-wider">
           <span>LUN</span>
           <span>MAR</span>
           <span>MIÉ</span>
@@ -101,12 +102,12 @@ export const CalendarView: React.FC = () => {
         </div>
 
         {/* Month grid */}
-        <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-[#777777]/15">
           {/* Empty starting padding days */}
           {Array.from({ length: startingDay }).map((_, idx) => (
             <div
               key={`empty-${idx}`}
-              className="min-h-[110px] p-2 bg-slate-50/40 dark:bg-slate-900/30 text-slate-300 dark:text-slate-700 select-none"
+              className="min-h-[110px] p-2 bg-[#171717] text-slate-700 select-none"
             />
           ))}
 
@@ -128,24 +129,24 @@ export const CalendarView: React.FC = () => {
             return (
               <div
                 key={day}
-                className={`min-h-[110px] p-2 transition-colors flex flex-col justify-between ${
+                className={`min-h-[110px] p-2.5 transition-colors flex flex-col justify-between ${
                   isToday
-                    ? 'bg-teal-50/30 dark:bg-teal-950/20 ring-1 ring-inset ring-[#34877c]/40'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    ? 'bg-teal-950/20 ring-1 ring-inset ring-[#34877c]/40'
+                    : 'hover:bg-[#181818]'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${
+                    className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center font-mono ${
                       isToday
-                        ? 'bg-[#34877c] text-white'
-                        : 'text-slate-700 dark:text-slate-300'
+                        ? 'bg-[#34877c] text-white shadow-xs'
+                        : 'text-slate-300'
                     }`}
                   >
                     {day}
                   </span>
                   {isToday && (
-                    <span className="text-[10px] font-bold text-[#34877c] uppercase">Hoy</span>
+                    <span className="text-[10px] font-bold text-[#34877c] uppercase tracking-wider">Hoy</span>
                   )}
                 </div>
 
@@ -154,7 +155,8 @@ export const CalendarView: React.FC = () => {
                   {deliveries.map(proj => (
                     <div
                       key={proj.id}
-                      className="p-1 rounded bg-[#34877c]/10 dark:bg-[#34877c]/20 border border-[#34877c]/30 text-[10px] font-semibold text-[#276961] dark:text-[#52bfb2] truncate cursor-pointer hover:opacity-80"
+                      onClick={() => setActiveTab('projects')}
+                      className="p-1.5 rounded-lg bg-[#34877c]/20 border border-[#34877c]/35 text-[10px] font-semibold text-[#52bfb2] truncate cursor-pointer hover:bg-[#34877c]/30 transition-colors"
                       title={`Entrega: ${proj.title} (${proj.clientName})`}
                     >
                       📦 {proj.clientName}
@@ -164,7 +166,8 @@ export const CalendarView: React.FC = () => {
                   {retainersBillingToday.map(ret => (
                     <div
                       key={ret.id}
-                      className="p-1 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-[10px] font-semibold text-amber-800 dark:text-amber-300 truncate"
+                      onClick={() => setActiveTab('projects')}
+                      className="p-1.5 rounded-lg bg-amber-950/40 border border-amber-800/80 text-[10px] font-semibold text-amber-300 truncate cursor-pointer hover:bg-amber-950/60 transition-colors"
                       title={`Cobro abono mensual: ${ret.clientName}`}
                     >
                       💰 Cobro {ret.clientName}
@@ -180,13 +183,13 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Agenda Summary below calendar */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
-        <h2 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+      <div className="bg-[#202020] rounded-2xl border border-[#777777]/20 p-5 sm:p-6 shadow-lg">
+        <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
           <Clock className="w-4 h-4 text-[#34877c]" />
           <span>Próximos compromisos agendados para este mes</span>
         </h2>
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="divide-y divide-[#777777]/15">
           {projects
             .filter(p => p.deliveryDate && p.deliveryDate.startsWith(monthString))
             .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime())
@@ -195,18 +198,18 @@ export const CalendarView: React.FC = () => {
               return (
                 <div key={proj.id} className="py-3 flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-slate-700 dark:text-slate-300 w-24">
+                    <span className="font-bold text-slate-300 w-24 font-mono">
                       {formatDateAR(proj.deliveryDate)}
                     </span>
                     <div>
-                      <span className="font-bold text-slate-900 dark:text-white mr-2">
+                      <span className="font-bold text-white mr-2">
                         {proj.title}
                       </span>
-                      <span className="text-slate-500">({proj.clientName})</span>
+                      <span className="text-[#888888]">({proj.clientName})</span>
                     </div>
                   </div>
 
-                  <span className={`px-2 py-0.5 rounded-full border text-[11px] ${badge.colorClass}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-medium ${badge.colorClass}`}>
                     {badge.label}
                   </span>
                 </div>

@@ -118,7 +118,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Team & Current User
   const [team, setTeam] = useState<TeamMember[]>(() => {
-    return loadFromStorage(STORAGE_KEYS.TEAM, DEFAULT_TEAM);
+    const stored = loadFromStorage<TeamMember[]>(STORAGE_KEYS.TEAM, DEFAULT_TEAM);
+    // Ensure avatarColors match the unified UNKE palette #27655d, #34877c, #5d9f96
+    return stored.map(m => {
+      const defaultMatch = DEFAULT_TEAM.find(d => d.id === m.id);
+      if (defaultMatch) {
+        return { ...m, avatarColor: defaultMatch.avatarColor };
+      }
+      return m;
+    });
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {

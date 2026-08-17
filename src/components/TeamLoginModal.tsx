@@ -110,7 +110,15 @@ export const TeamLoginModal: React.FC<TeamLoginModalProps> = ({ isOpen, onClose 
         {switchingToMember ? (
           <form onSubmit={handleConfirmSwitch} className="space-y-4">
             <div className="bg-[#141414] p-3.5 rounded-xl border border-[#777777]/20 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#34877c] flex items-center justify-center text-xs font-bold text-white">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs ${
+                  switchingToMember.id === 'member_nacho'
+                    ? 'bg-[#27655d]'
+                    : switchingToMember.id === 'member_fede'
+                    ? 'bg-[#34877c]'
+                    : 'bg-[#5d9f96]'
+                }`}
+              >
                 {switchingToMember.initials}
               </div>
               <div className="flex-1 min-w-0">
@@ -195,9 +203,13 @@ export const TeamLoginModal: React.FC<TeamLoginModalProps> = ({ isOpen, onClose 
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-xs ${
-                          isCurrent ? 'bg-[#34877c] text-white' : 'bg-[#444444] text-[#aaaaaa]'
-                        }`}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-xs text-white ${
+                          member.id === 'member_nacho'
+                            ? 'bg-[#27655d]'
+                            : member.id === 'member_fede'
+                            ? 'bg-[#34877c]'
+                            : 'bg-[#5d9f96]'
+                        } ${isCurrent ? 'ring-2 ring-white/70' : 'opacity-85'}`}
                       >
                         {member.initials}
                       </div>

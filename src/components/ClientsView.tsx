@@ -651,253 +651,273 @@ export const ClientsView: React.FC = () => {
         </div>
       )}
 
-      {/* Add / Edit Client Modal */}
+      {/* Add / Edit Client Modal (Landscape 2-Column Layout) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#202020] rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#777777]/25 space-y-4 my-8 text-white">
-            <div className="flex items-center justify-between border-b border-[#777777]/20 pb-3">
-              <h2 className="text-base font-bold text-white">
-                {editingClient ? `Editar ${editingClient.name}` : 'Nuevo Cliente'}
-              </h2>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-[#1a1a1a] rounded-2xl max-w-5xl lg:max-w-6xl w-full p-4 sm:p-6 shadow-2xl border border-[#777777]/20 space-y-4 my-auto max-h-[94vh] flex flex-col text-white">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#777777]/20 pb-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[#34877c]/15 text-[#34877c] flex items-center justify-center font-bold">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+                    {editingClient ? `Editar ${editingClient.name}` : 'Nuevo Cliente'}
+                  </h2>
+                  <p className="text-xs text-[#888888]">
+                    Ficha de contacto comercial y credenciales del cliente
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={handleCloseModal}
-                className="text-[#777777] hover:text-white p-1 rounded-lg transition-colors"
+                className="text-[#777777] hover:text-white p-1.5 rounded-lg hover:bg-[#282828] transition-colors cursor-pointer"
+                title="Cerrar modal"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveClient} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre o Marca del Cliente *
-                </label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="Ej. Bodega Los Alerces"
-                  required
-                  className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Razón Social / Empresa
-                </label>
-                <input
-                  type="text"
-                  value={formCompany}
-                  onChange={e => setFormCompany(e.target.value)}
-                  placeholder="Ej. Los Alerces Wines S.A."
-                  className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Email de Contacto *
-                  </label>
-                  <input
-                    type="email"
-                    value={formEmail}
-                    onChange={e => setFormEmail(e.target.value)}
-                    placeholder="contacto@cliente.com"
-                    required
-                    className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Teléfono / WhatsApp
-                  </label>
-                  <input
-                    type="text"
-                    value={formPhone}
-                    onChange={e => setFormPhone(e.target.value)}
-                    placeholder="+54 9 11 ..."
-                    className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    CUIT / CUIL / DNI
-                  </label>
-                  <input
-                    type="text"
-                    value={formCuit}
-                    onChange={e => setFormCuit(e.target.value)}
-                    placeholder="30-XXXXXXXX-X"
-                    className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Estado Comercial
-                  </label>
-                  <select
-                    value={formStatus}
-                    onChange={e => setFormStatus(e.target.value as 'activo' | 'inactivo' | 'potencial')}
-                    className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                  >
-                    <option value="activo">Activo</option>
-                    <option value="potencial">Potencial</option>
-                    <option value="inactivo">Inactivo</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Dirección / Localidad
-                </label>
-                <input
-                  type="text"
-                  value={formAddress}
-                  onChange={e => setFormAddress(e.target.value)}
-                  placeholder="Ciudad, Provincia..."
-                  className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                />
-              </div>
-
-              {/* WEBSITE ACCESS CHECKBOX SECTION */}
-              <div className="pt-2 border-t border-[#777777]/20">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 rounded-xl bg-[#141414] border border-[#777777]/25 hover:border-[#34877c]/50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={formHasWeb}
-                    onChange={e => setFormHasWeb(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#34877c] accent-[#34877c] bg-[#202020] border-[#777777]/40 focus:ring-0 cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5 text-[#34877c]" />
-                      <span>¿Tiene sitio web o tienda online?</span>
-                    </span>
-                    <span className="text-[11px] text-[#888888] block">
-                      Habilitar para guardar credenciales, URLs de administración y datos de hosting.
-                    </span>
-                  </div>
-                </label>
-
-                {/* Extended Web Access Inputs when checkbox is true */}
-                {formHasWeb && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-[#141414] border border-[#34877c]/40 space-y-3 animate-fadeIn">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#34877c]">
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Datos y Credenciales de Acceso Web</span>
+            <form onSubmit={handleSaveClient} className="flex flex-col flex-1 min-h-0 overflow-y-auto pr-0.5 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+                {/* Column 1 (Left - 6 Cols on Desktop): Commercial & Contact Information */}
+                <div className="lg:col-span-6 space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Nombre o Marca del Cliente *
+                      </label>
+                      <input
+                        type="text"
+                        value={formName}
+                        onChange={e => setFormName(e.target.value)}
+                        placeholder="Ej. Bodega Los Alerces"
+                        required
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                      />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">
-                          URL del Sitio Web
-                        </label>
-                        <input
-                          type="text"
-                          value={formWebUrl}
-                          onChange={e => setFormWebUrl(e.target.value)}
-                          placeholder="https://cliente.com"
-                          className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Razón Social / Empresa
+                      </label>
+                      <input
+                        type="text"
+                        value={formCompany}
+                        onChange={e => setFormCompany(e.target.value)}
+                        placeholder="Ej. Los Alerces Wines S.A."
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                      />
+                    </div>
+                  </div>
 
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">
-                          URL de Panel / Admin
-                        </label>
-                        <input
-                          type="text"
-                          value={formWebAdminUrl}
-                          onChange={e => setFormWebAdminUrl(e.target.value)}
-                          placeholder="https://cliente.com/wp-admin"
-                          className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Email de Contacto *
+                      </label>
+                      <input
+                        type="email"
+                        value={formEmail}
+                        onChange={e => setFormEmail(e.target.value)}
+                        placeholder="contacto@cliente.com"
+                        required
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">
-                          Usuario / Email de Acceso
-                        </label>
-                        <input
-                          type="text"
-                          value={formWebUser}
-                          onChange={e => setFormWebUser(e.target.value)}
-                          placeholder="admin / info@cliente.com"
-                          className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Teléfono / WhatsApp
+                      </label>
+                      <input
+                        type="text"
+                        value={formPhone}
+                        onChange={e => setFormPhone(e.target.value)}
+                        placeholder="+54 9 11 ..."
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                      />
+                    </div>
+                  </div>
 
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">
-                          Contraseña de Acceso
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showFormPassword ? 'text' : 'password'}
-                            value={formWebPassword}
-                            onChange={e => setFormWebPassword(e.target.value)}
-                            placeholder="Clave de acceso..."
-                            className="w-full text-xs pl-2.5 pr-8 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowFormPassword(!showFormPassword)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#777777] hover:text-white"
-                          >
-                            {showFormPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        CUIT / CUIL / DNI
+                      </label>
+                      <input
+                        type="text"
+                        value={formCuit}
+                        onChange={e => setFormCuit(e.target.value)}
+                        placeholder="30-XXXXXXXX-X"
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white font-mono outline-none focus:border-[#34877c]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Estado Comercial
+                      </label>
+                      <select
+                        value={formStatus}
+                        onChange={e => setFormStatus(e.target.value as 'activo' | 'inactivo' | 'potencial')}
+                        className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                      >
+                        <option value="activo">Activo</option>
+                        <option value="potencial">Potencial</option>
+                        <option value="inactivo">Inactivo</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Dirección / Localidad
+                    </label>
+                    <input
+                      type="text"
+                      value={formAddress}
+                      onChange={e => setFormAddress(e.target.value)}
+                      placeholder="Ciudad, Provincia..."
+                      className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Notas comerciales adicionales
+                    </label>
+                    <textarea
+                      value={formNotes}
+                      onChange={e => setFormNotes(e.target.value)}
+                      rows={2}
+                      placeholder="Anotaciones sobre preferencias, horarios o forma de trabajo..."
+                      className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c] resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Column 2 (Right - 6 Cols on Desktop): Website Credentials & Hosting */}
+                <div className="lg:col-span-6 space-y-3.5">
+                  <div className="border border-[#777777]/25 rounded-2xl p-4 bg-[#141414] space-y-3.5">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={formHasWeb}
+                        onChange={e => setFormHasWeb(e.target.checked)}
+                        className="w-4 h-4 rounded text-[#34877c] accent-[#34877c] bg-[#202020] border-[#777777]/40 focus:ring-0 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Globe className="w-4 h-4 text-[#34877c]" />
+                          <span>¿Tiene sitio web o tienda online?</span>
+                        </span>
+                        <span className="text-[11px] text-[#888888] block">
+                          Habilitar para registrar accesos, URLs de administración y datos de hosting.
+                        </span>
+                      </div>
+                    </label>
+
+                    {formHasWeb ? (
+                      <div className="space-y-3 pt-3 border-t border-[#777777]/20 animate-fadeIn">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] text-slate-300 mb-1">
+                              URL del Sitio Web
+                            </label>
+                            <input
+                              type="text"
+                              value={formWebUrl}
+                              onChange={e => setFormWebUrl(e.target.value)}
+                              placeholder="https://cliente.com"
+                              className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] text-slate-300 mb-1">
+                              URL de Panel / Admin
+                            </label>
+                            <input
+                              type="text"
+                              value={formWebAdminUrl}
+                              onChange={e => setFormWebAdminUrl(e.target.value)}
+                              placeholder="https://cliente.com/wp-admin"
+                              className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] text-slate-300 mb-1">
+                              Usuario / Email de Acceso
+                            </label>
+                            <input
+                              type="text"
+                              value={formWebUser}
+                              onChange={e => setFormWebUser(e.target.value)}
+                              placeholder="admin / info@cliente.com"
+                              className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] text-slate-300 mb-1">
+                              Contraseña de Acceso
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={showFormPassword ? 'text' : 'password'}
+                                value={formWebPassword}
+                                onChange={e => setFormWebPassword(e.target.value)}
+                                placeholder="Clave de acceso..."
+                                className="w-full text-xs pl-2.5 pr-8 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowFormPassword(!showFormPassword)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#777777] hover:text-white cursor-pointer"
+                              >
+                                {showFormPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="col-span-full">
+                            <label className="block text-[11px] text-slate-300 mb-1">
+                              Hosting / Proveedor / Notas de Acceso
+                            </label>
+                            <textarea
+                              value={formWebHostingNotes}
+                              onChange={e => setFormWebHostingNotes(e.target.value)}
+                              rows={3}
+                              placeholder="Ej: DonWeb / Tiendanube / Cloudflare / DNS / Accesos FTP..."
+                              className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c] resize-none"
+                            />
+                          </div>
                         </div>
                       </div>
-
-                      <div className="col-span-full">
-                        <label className="block text-[11px] text-slate-300 mb-1">
-                          Hosting / Proveedor / Notas de Acceso
-                        </label>
-                        <textarea
-                          value={formWebHostingNotes}
-                          onChange={e => setFormWebHostingNotes(e.target.value)}
-                          rows={2}
-                          placeholder="Ej: DonWeb / Tiendanube / Cloudflare / DNS / Accesos FTP..."
-                          className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
-                        />
+                    ) : (
+                      <div className="p-4 bg-[#202020]/60 rounded-xl border border-dashed border-[#777777]/20 text-center text-xs text-[#777777]">
+                        Marcá la casilla superior para guardar credenciales de WordPress, Tiendanube, hosting o Shopify.
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Notas adicionales
-                </label>
-                <textarea
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Anotaciones sobre preferencias, horarios o forma de trabajo..."
-                  className="w-full text-xs px-3 py-2 bg-[#141414] border border-[#777777]/30 rounded-xl text-white outline-none focus:border-[#34877c]"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#777777]/20">
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#777777]/20 shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#888888] hover:text-white hover:bg-[#141414] transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#888888] hover:text-white hover:bg-[#141414] transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-[#34877c] hover:bg-[#2a6d63] text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
                 >
                   {editingClient ? 'Guardar Cambios' : 'Crear Cliente'}
                 </button>
