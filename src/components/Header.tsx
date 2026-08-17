@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Zone 2: Navigation Tabs (Desktop / Tablet) */}
-          <nav className="hidden lg:flex items-center space-x-1 bg-[#141414] p-1 rounded-xl border border-[#777777]/20">
+          <nav className="hidden md:flex items-center space-x-1 bg-[#141414] p-1 rounded-xl border border-[#777777]/20">
             {navItems.map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -135,8 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Crear un nuevo proyecto"
             >
               <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
-              <span className="hidden xs:inline sm:inline">Nuevo Proyecto</span>
-              <span className="xs:hidden sm:hidden">Proyecto</span>
+              <span>Nuevo Proyecto</span>
             </button>
 
             {/* Quick Action: Budget */}
@@ -186,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile Navigation Row */}
-        <div className="lg:hidden mt-2 flex items-center justify-around bg-[#202020] rounded-xl border border-[#777777]/20 p-1.5 overflow-x-auto shadow-md">
+        <div className="md:hidden mt-2 flex items-center justify-around bg-[#202020] rounded-xl border border-[#777777]/20 p-1.5 overflow-x-auto shadow-md">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
