@@ -237,7 +237,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <th className="pb-2 font-semibold">CLIENTE / TRABAJO</th>
                     <th className="pb-2 font-semibold">ENTREGA</th>
                     <th className="pb-2 font-semibold">ESTADO PAGO</th>
-                    <th className="pb-2 font-semibold text-right">MONTO TOTAL</th>
+                    <th className="pb-2 font-semibold text-right">COBRO / RESTA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#777777]/10">
@@ -261,10 +261,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ) : (
                     tableProjects.map(proj => {
                       const badge = getDeadlineBadge(proj.deliveryDate, proj.status);
+                      const isRetainer = proj.type === 'mantenimiento';
                       const isPaid =
-                        proj.type === 'proyecto'
-                          ? proj.paymentStatus === 'pagado' || proj.paidAmount >= proj.totalAmount
+                        !isRetainer
+                          ? proj.paymentStatus === 'pagado' || (proj.totalAmount > 0 && proj.paidAmount >= proj.totalAmount)
                           : proj.lastMonthlyPaymentDate === currentMonthStr;
+
+                      const hasPartialPayment =
+                        !isRetainer &&
+                        !isPaid &&
+                        proj.paidAmount > 0 &&
+                        proj.paidAmount < proj.totalAmount;
+
+                      const remainingAmount = Math.max(0, proj.totalAmount - proj.paidAmount);
 
                       return (
                         <tr
@@ -291,18 +300,67 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             </span>
                           </td>
                           <td className="py-2.5 whitespace-nowrap">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                                isPaid
-                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                  : 'bg-amber-950 text-amber-300 border border-amber-800'
-                              }`}
-                            >
-                              {isPaid ? 'AL DÍA' : 'PENDIENTE'}
-                            </span>
+                            {isRetainer ? (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                  isPaid
+                                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                    : 'bg-amber-950 text-amber-300 border border-amber-800'
+                                }`}
+                              >
+                                {isPaid ? 'AL DÍA' : 'PENDIENTE'}
+                              </span>
+                            ) : hasPartialPayment ? (
+                              <div className="inline-flex flex-col items-start">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-cyan-950/80 text-cyan-300 border border-cyan-700">
+                                  PARCIAL ({Math.round((proj.paidAmount / proj.totalAmount) * 100)}%)
+                                </span>
+                              </div>
+                            ) : (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                  isPaid
+                                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                    : 'bg-amber-950 text-amber-300 border border-amber-800'
+                                }`}
+                              >
+                                {isPaid ? 'PAGADO' : 'PENDIENTE'}
+                              </span>
+                            )}
                           </td>
-                          <td className="py-2.5 text-right font-mono font-bold text-white whitespace-nowrap">
-                            {formatARS(proj.totalAmount)}
+                          <td className="py-2.5 text-right whitespace-nowrap">
+                            {isRetainer ? (
+                              <div>
+                                <span className="font-mono font-bold text-white">
+                                  {formatARS(proj.totalAmount)}
+                                </span>
+                                <span className="text-[10px] text-[#777777] block font-mono">/mes</span>
+                              </div>
+                            ) : hasPartialPayment ? (
+                              <div className="space-y-0.5">
+                                <div className="text-[11px] font-mono">
+                                  <span className="text-emerald-400 font-bold">Cobrado: {formatARS(proj.paidAmount)}</span>
+                                </div>
+                                <div className="text-[11px] font-mono">
+                                  <span className="text-amber-400 font-bold">Resta: {formatARS(remainingAmount)}</span>
+                                </div>
+                                <div className="text-[10px] font-mono text-[#777777]">
+                                  Total: {formatARS(proj.totalAmount)}
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-mono font-bold text-white">
+                                  {formatARS(proj.totalAmount)}
+                                </span>
+                                {isPaid && proj.paidAmount > 0 && (
+                                  <span className="text-[10px] text-emerald-400 block font-mono font-medium">100% cobrado</span>
+                                )}
+                                {!isPaid && proj.paidAmount === 0 && (
+                                  <span className="text-[10px] text-amber-400/80 block font-mono">Sin cobros</span>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
