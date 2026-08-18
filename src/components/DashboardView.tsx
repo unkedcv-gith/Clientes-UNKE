@@ -22,6 +22,9 @@ import {
   FolderPlus,
   Trash2,
   Pin,
+  X,
+  TrendingUp,
+  ChevronRight,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -86,6 +89,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   }, 0);
 
+  // Month selection for Income view (defaults to current month YYYY-MM)
+  const currentMonthStr = new Date().toISOString().slice(0, 7); // e.g. "2026-08"
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
+  const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+
   // Filtered projects for table
   const tableProjects = projects.filter(p => {
     if (projectTableFilter === 'activos') {
@@ -97,7 +105,112 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return true;
   }).slice(0, 6);
 
-  const currentMonthStr = new Date().toISOString().slice(0, 7); // e.g. "2026-08"
+  // REAL MONTHLY REVENUE CALCULATION FOR A GIVEN MONTH:
+  // 1) Punctual project payments recorded with payment date in this month
+  // 2) Retainer fees that were marked as paid for this month (lastMonthlyPaymentDate === month or paymentsHistory recorded in this month)
+  const calculateMonthIncome = (monthStr: string) => {
+    let punctualCollected = 0;
+    let retainersCollected = 0;
+    const paymentItems: Array<{
+      id: string;
+      projectCode: string;
+      projectTitle: string;
+      clientName: string;
+      type: 'proyecto' | 'mantenimiento';
+      amount: number;
+      date: string;
+      method: string;
+    }> = [];
+
+    projects.forEach(p => {
+      if (p.type === 'proyecto') {
+        // Look into payment history records matching this month
+        const monthlyRecords = (p.paymentsHistory || []).filter(r => r.date && r.date.startsWith(monthStr));
+        if (monthlyRecords.length > 0) {
+          monthlyRecords.forEach(r => {
+            punctualCollected += r.amount;
+            paymentItems.push({
+              id: r.id || `${p.id}-${r.date}`,
+              projectCode: p.code,
+              projectTitle: p.title,
+              clientName: p.clientName,
+              type: 'proyecto',
+              amount: r.amount,
+              date: r.date,
+              method: r.method || 'Transferencia',
+            });
+          });
+        } else if (p.startDate && p.startDate.startsWith(monthStr) && p.paidAmount > 0 && (!p.paymentsHistory || p.paymentsHistory.length === 0)) {
+          // Fallback if project was created in this month with initial paidAmount without explicit history
+          punctualCollected += p.paidAmount;
+          paymentItems.push({
+            id: `${p.id}-init`,
+            projectCode: p.code,
+            projectTitle: p.title,
+            clientName: p.clientName,
+            type: 'proyecto',
+            amount: p.paidAmount,
+            date: p.startDate,
+            method: 'Pago Inicial',
+          });
+        }
+      } else if (p.type === 'mantenimiento') {
+        // If retainer is paid for this month
+        const hasSpecificHistory = (p.paymentsHistory || []).some(r => r.date && r.date.startsWith(monthStr));
+        if (p.lastMonthlyPaymentDate === monthStr || hasSpecificHistory) {
+          retainersCollected += (p.totalAmount || 0);
+          paymentItems.push({
+            id: `${p.id}-${monthStr}`,
+            projectCode: p.code,
+            projectTitle: p.title,
+            clientName: p.clientName,
+            type: 'mantenimiento',
+            amount: p.totalAmount || 0,
+            date: `${monthStr}-${String(p.monthlyBillingDay || 5).padStart(2, '0')}`,
+            method: 'Abono Mensual',
+          });
+        }
+      }
+    });
+
+    return {
+      total: punctualCollected + retainersCollected,
+      punctualCollected,
+      retainersCollected,
+      paymentItems: paymentItems.sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    };
+  };
+
+  // Income calculations for currently selected month
+  const selectedMonthData = calculateMonthIncome(selectedMonth);
+
+  // Generate list of previous 12 months for historical archive
+  const monthlyArchiveList = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const mStr = d.toISOString().slice(0, 7);
+    const data = calculateMonthIncome(mStr);
+    const monthName = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+    return {
+      monthStr: mStr,
+      label: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      total: data.total,
+      punctual: data.punctualCollected,
+      retainers: data.retainersCollected,
+      count: data.paymentItems.length,
+    };
+  });
+
+  const formatMonthLabel = (mStr: string) => {
+    try {
+      const [y, m] = mStr.split('-');
+      const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+      const name = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    } catch {
+      return mStr;
+    }
+  };
 
   const handleQuickAddNote = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,40 +251,79 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="space-y-4">
       {/* Bento Grid Top Layer (12 Columns) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Bento Tile 1: Hero Facturación Mensual / MRR (Span 4) */}
-        <div className="md:col-span-4 bg-[#34877c] rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden shadow-lg min-h-[260px]">
+        {/* Bento Tile 1: Hero Facturación Mensual / Ingreso Real Mensual e Historial (Span 4) */}
+        <div className="md:col-span-4 bg-[#34877c] rounded-3xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-lg min-h-[260px]">
           <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
           <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full blur-lg pointer-events-none"></div>
 
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-100 bg-black/20 px-2.5 py-1 rounded-full backdrop-blur-xs">
-                Abonos Mensuales
-              </span>
-              <div className="flex items-center space-x-1.5 bg-black/25 px-2.5 py-1 rounded-full text-[10px] text-white font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-                <span>En vivo</span>
+            {/* Top row: Label + Month selector + History Button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 bg-black/25 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">
+                  Ingreso Real Mensual
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowHistoryModal(true)}
+                  className="flex items-center gap-1 bg-black/25 hover:bg-black/40 text-white px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border border-white/15"
+                  title="Ver archivo histórico de ingresos"
+                >
+                  <Activity className="w-3 h-3 text-emerald-300" />
+                  <span>Historial</span>
+                </button>
               </div>
             </div>
 
-            <div className="mt-4">
+            {/* Selected Month Indicator & Switcher */}
+            <div className="mt-3 flex items-center justify-between bg-black/15 px-2.5 py-1 rounded-xl border border-white/10 text-xs">
+              <span className="text-[11px] text-emerald-100 font-semibold flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 opacity-80" />
+                {formatMonthLabel(selectedMonth)}
+                {selectedMonth === currentMonthStr && (
+                  <span className="text-[9px] bg-emerald-400/20 text-emerald-200 px-1.5 py-0.2 rounded font-bold uppercase">
+                    Mes actual
+                  </span>
+                )}
+              </span>
+
+              <select
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="bg-[#141414]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg border border-white/20 outline-none cursor-pointer"
+              >
+                {monthlyArchiveList.map(m => (
+                  <option key={m.monthStr} value={m.monthStr}>
+                    {m.label} ({formatARS(m.total)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Total Real Income Amount */}
+            <div className="mt-3.5">
               <div className="text-3xl sm:text-4xl font-black tracking-tight text-white font-mono">
-                {formatARS(monthlyRecurringRevenue)}
+                {formatARS(selectedMonthData.total)}
               </div>
               <div className="text-xs text-emerald-100/90 font-medium mt-1">
-                Ingreso recurrente mensual en abonos activos
+                Total efectivamente cobrado en {formatMonthLabel(selectedMonth)}
               </div>
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="text-[11px] text-emerald-100/80 block">Abonos activos</span>
-              <span className="font-bold text-white text-sm">{retainers.length} clientes</span>
+          {/* Breakdown: Cobros de Abonos vs Trabajos Puntuales */}
+          <div className="mt-4 pt-3.5 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-black/10 rounded-xl p-2 border border-white/10">
+              <span className="text-[10px] text-emerald-100/80 block uppercase font-bold">Abonos cobrados</span>
+              <span className="font-bold text-white text-sm font-mono">{formatARS(selectedMonthData.retainersCollected)}</span>
             </div>
-            <div>
-              <span className="text-[11px] text-emerald-100/80 block">Trabajos puntuales</span>
-              <span className="font-bold text-white text-sm">{oneTimeProjects.length} proyectos</span>
+            <div className="bg-black/10 rounded-xl p-2 border border-white/10">
+              <span className="text-[10px] text-emerald-100/80 block uppercase font-bold">Trabajos puntuales</span>
+              <span className="font-bold text-white text-sm font-mono">{formatARS(selectedMonthData.punctualCollected)}</span>
             </div>
           </div>
         </div>
@@ -754,6 +906,194 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </table>
         </div>
       </div>
+      {/* Historical Monthly Revenue Archive Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+          <div className="bg-[#1c1c1c] rounded-3xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl border border-[#777777]/20 flex flex-col max-h-[90vh] text-white">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#777777]/20 pb-4 mb-4 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#34877c]/20 text-[#34877c] flex items-center justify-center font-bold">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white">
+                    Historial y Archivo de Ingresos Mensuales
+                  </h2>
+                  <p className="text-xs text-[#888888]">
+                    Registro histórico mes a mes de cobros reales percibidos (Abonos + Trabajos Puntuales)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                className="p-2 rounded-xl text-[#888888] hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+                title="Cerrar ventana"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: 2 Columns (Month Cards list on left, Selected Month Details on right) */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 overflow-y-auto flex-1 pr-1">
+              
+              {/* Left Column: Months list */}
+              <div className="md:col-span-5 space-y-2">
+                <div className="text-[11px] font-bold text-[#888888] uppercase tracking-wider px-1">
+                  Últimos 12 Meses
+                </div>
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {monthlyArchiveList.map(item => {
+                    const isSelected = item.monthStr === selectedMonth;
+                    const isCurrent = item.monthStr === currentMonthStr;
+
+                    return (
+                      <button
+                        key={item.monthStr}
+                        type="button"
+                        onClick={() => setSelectedMonth(item.monthStr)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-[#34877c]/20 border-[#34877c] shadow-xs'
+                            : 'bg-[#141414] border-[#777777]/15 hover:border-[#777777]/40'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-white">
+                              {item.label}
+                            </span>
+                            {isCurrent && (
+                              <span className="text-[9px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.2 rounded">
+                                Actual
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[#888888] mt-0.5">
+                            {item.count} cobro(s) registrado(s)
+                          </div>
+                        </div>
+
+                        <div className="text-right flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-emerald-300">
+                            {formatARS(item.total)}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-[#666666]" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Detailed Breakdown for Selected Month */}
+              <div className="md:col-span-7 bg-[#141414] rounded-2xl p-4 border border-[#777777]/20 flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#777777]/15 pb-3">
+                    <div>
+                      <span className="text-[10px] text-[#888888] uppercase font-bold tracking-wider">
+                        Detalle del período
+                      </span>
+                      <h3 className="text-base font-bold text-white">
+                        {formatMonthLabel(selectedMonth)}
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider block">
+                        Ingreso total real
+                      </span>
+                      <span className="text-xl font-black font-mono text-white">
+                        {formatARS(selectedMonthData.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick stats for this month */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-[#202020] p-2.5 rounded-xl border border-[#777777]/15">
+                      <span className="text-[10px] text-[#888888] block">Abonos mensuales cobrados</span>
+                      <span className="font-mono font-bold text-sm text-emerald-300">
+                        {formatARS(selectedMonthData.retainersCollected)}
+                      </span>
+                    </div>
+                    <div className="bg-[#202020] p-2.5 rounded-xl border border-[#777777]/15">
+                      <span className="text-[10px] text-[#888888] block">Cobros de trabajos puntuales</span>
+                      <span className="font-mono font-bold text-sm text-emerald-300">
+                        {formatARS(selectedMonthData.punctualCollected)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* List of payments recorded for this month */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-[#aaaaaa] uppercase tracking-wider">
+                      Desglose de cobros percibidos ({selectedMonthData.paymentItems.length})
+                    </div>
+
+                    {selectedMonthData.paymentItems.length === 0 ? (
+                      <div className="text-center py-8 text-[#777777] bg-[#202020]/50 rounded-xl border border-[#777777]/10">
+                        <DollarSign className="w-8 h-8 mx-auto mb-1 opacity-30 text-[#666666]" />
+                        <p className="text-xs">No hay cobros registrados en {formatMonthLabel(selectedMonth)}.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                        {selectedMonthData.paymentItems.map(item => (
+                          <div
+                            key={item.id}
+                            className="bg-[#202020] p-2.5 rounded-xl border border-[#777777]/15 flex items-center justify-between text-xs"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-white truncate">
+                                  {item.clientName}
+                                </span>
+                                <span className="font-mono text-[10px] text-[#777777]">
+                                  {item.projectCode}
+                                </span>
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                                    item.type === 'mantenimiento'
+                                      ? 'bg-teal-950 text-teal-300 border border-teal-800'
+                                      : 'bg-sky-950 text-sky-300 border border-sky-800'
+                                  }`}
+                                >
+                                  {item.type === 'mantenimiento' ? 'Abono' : 'Proyecto'}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#888888] truncate">
+                                {item.projectTitle} • {formatDateAR(item.date)} ({item.method})
+                              </div>
+                            </div>
+
+                            <div className="font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
+                              +{formatARS(item.amount)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[#777777]/15 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-[#777777]">
+                    Moneda: Pesos Argentinos (ARS)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistoryModal(false)}
+                    className="px-4 py-1.5 bg-[#34877c] hover:bg-[#286b62] text-white font-bold rounded-xl transition-all cursor-pointer text-xs"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
