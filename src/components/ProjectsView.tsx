@@ -370,7 +370,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             className="flex items-center gap-2 bg-[#34877c] hover:bg-[#2a6d63] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Nuevo Trabajo</span>
+            <span>Nuevo Proyecto</span>
           </button>
         </div>
       </div>
