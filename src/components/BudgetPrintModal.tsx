@@ -125,7 +125,7 @@ export const BudgetPrintModal: React.FC<BudgetPrintModalProps> = ({
                   <span className="font-semibold">Válido hasta:</span> {formatDateAR(budget.validUntilDate)}
                 </div>
                 <div className="text-xs inline-block bg-teal-50 text-[#34877c] font-bold px-2 py-0.5 rounded border border-teal-200 mt-1">
-                  {budget.projectType === 'mantenimiento' ? 'ABONO MENSUAL' : 'PROYECTO CERRADO'}
+                  {budget.projectType === 'mantenimiento' ? 'ABONO MENSUAL' : 'PROYECTO PUNTUAL'}
                 </div>
               </div>
             </div>
