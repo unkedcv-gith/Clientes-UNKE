@@ -944,10 +944,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       paymentStatus: 'pendiente',
       totalAmount: budget.totalAmount,
       paidAmount: 0,
-      monthlyBillingDay: budget.projectType === 'mantenimiento' ? 5 : undefined,
+      monthlyBillingDay: budget.projectType === 'mantenimiento' || budget.projectType === 'hibrido' ? 5 : undefined,
       startDate: new Date().toISOString().split('T')[0],
       deliveryDate,
-      tags: [budget.projectType === 'mantenimiento' ? 'Abono Mensual' : 'Proyecto Cerrado'],
+      tags: [
+        budget.projectType === 'mantenimiento'
+          ? 'Abono Mensual'
+          : budget.projectType === 'hibrido'
+          ? 'Puntual + Abono'
+          : 'Proyecto Puntual',
+      ],
       deliverables,
       paymentsHistory: [],
       createdBy: currentUser.name,

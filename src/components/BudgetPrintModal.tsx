@@ -125,7 +125,11 @@ export const BudgetPrintModal: React.FC<BudgetPrintModalProps> = ({
                   <span className="font-semibold">Válido hasta:</span> {formatDateAR(budget.validUntilDate)}
                 </div>
                 <div className="text-xs inline-block bg-teal-50 text-[#34877c] font-bold px-2 py-0.5 rounded border border-teal-200 mt-1">
-                  {budget.projectType === 'mantenimiento' ? 'ABONO MENSUAL' : 'PROYECTO PUNTUAL'}
+                  {budget.projectType === 'mantenimiento'
+                    ? 'ABONO MENSUAL'
+                    : budget.projectType === 'hibrido'
+                    ? 'PROYECTO PUNTUAL + ABONO MENSUAL'
+                    : 'PROYECTO PUNTUAL'}
                 </div>
               </div>
             </div>
@@ -160,34 +164,82 @@ export const BudgetPrintModal: React.FC<BudgetPrintModalProps> = ({
                 <thead>
                   <tr className="bg-[#34877c] text-white">
                     <th className="py-2.5 px-3 font-bold rounded-l-lg">DESCRIPCIÓN / ALCANCE</th>
+                    {budget.projectType === 'hibrido' && (
+                      <th className="py-2.5 px-2 font-bold text-center w-24">MODALIDAD</th>
+                    )}
                     <th className="py-2.5 px-3 font-bold text-center w-16">CANT.</th>
                     <th className="py-2.5 px-3 font-bold text-right w-28">P. UNITARIO</th>
                     <th className="py-2.5 px-3 font-bold text-right rounded-r-lg w-32">TOTAL (ARS)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {budget.items.map((item, idx) => (
-                    <tr key={item.id || idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-3 font-medium text-slate-800">
-                        {item.description}
-                      </td>
-                      <td className="py-3 px-3 text-center text-slate-600">
-                        {item.quantity || 1}
-                      </td>
-                      <td className="py-3 px-3 text-right text-slate-600">
-                        {formatARS(item.unitPrice)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-900">
-                        {formatARS(item.total)}
-                      </td>
-                    </tr>
-                  ))}
+                  {budget.items.map((item, idx) => {
+                    const isItemMonthly = item.isMonthly || budget.projectType === 'mantenimiento';
+                    return (
+                      <tr key={item.id || idx} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-3 font-medium text-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span>{item.description}</span>
+                          </div>
+                        </td>
+                        {budget.projectType === 'hibrido' && (
+                          <td className="py-3 px-2 text-center">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isItemMonthly
+                                  ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                  : 'bg-amber-100 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {isItemMonthly ? 'Mensual' : 'Puntual'}
+                            </span>
+                          </td>
+                        )}
+                        <td className="py-3 px-3 text-center text-slate-600">
+                          {item.quantity || 1}
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-600">
+                          {formatARS(item.unitPrice)}
+                          {isItemMonthly && <span className="text-[10px] text-slate-400">/m</span>}
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-slate-900">
+                          {formatARS(item.total)}
+                          {isItemMonthly && <span className="text-[10px] text-purple-600 font-normal">/mes</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
               {/* Totals Summary */}
               <div className="flex justify-end mt-4">
-                <div className="w-64 space-y-2 text-xs">
+                <div className="w-72 space-y-2 text-xs">
+                  {budget.projectType === 'hibrido' && (
+                    <div className="space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mb-2">
+                      <div className="flex justify-between text-slate-700">
+                        <span className="text-amber-800 font-semibold">Implementación Puntual:</span>
+                        <span className="font-bold">
+                          {formatARS(
+                            budget.items
+                              .filter(i => !i.isMonthly)
+                              .reduce((acc, curr) => acc + (curr.total || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-slate-700">
+                        <span className="text-purple-800 font-semibold">Abono / Actualización:</span>
+                        <span className="font-bold">
+                          {formatARS(
+                            budget.items
+                              .filter(i => i.isMonthly)
+                              .reduce((acc, curr) => acc + (curr.total || 0), 0)
+                          )}/mes
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {budget.discountPercentage && budget.discountPercentage > 0 && (
                     <>
                       <div className="flex justify-between text-slate-500">
@@ -203,7 +255,11 @@ export const BudgetPrintModal: React.FC<BudgetPrintModalProps> = ({
 
                   <div className="flex justify-between items-center bg-[#f0f7f6] p-3 rounded-lg border border-[#34877c]/30 text-slate-900 font-bold">
                     <span className="text-[#34877c] font-black text-sm">
-                      {budget.projectType === 'mantenimiento' ? 'TOTAL MENSUAL:' : 'TOTAL FINAL:'}
+                      {budget.projectType === 'mantenimiento'
+                        ? 'TOTAL MENSUAL:'
+                        : budget.projectType === 'hibrido'
+                        ? 'TOTAL ESTIMADO:'
+                        : 'TOTAL FINAL:'}
                     </span>
                     <span className="text-base text-slate-900 font-black">
                       {formatARS(budget.totalAmount)}

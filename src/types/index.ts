@@ -10,7 +10,7 @@ export interface UserBankAccounts {
   [memberId: string]: BankAccountDetails;
 }
 
-export type ProjectType = 'proyecto' | 'mantenimiento';
+export type ProjectType = 'proyecto' | 'mantenimiento' | 'hibrido';
 
 export type ProjectStatus =
   | 'prospecto'
@@ -109,6 +109,7 @@ export interface BudgetItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  isMonthly?: boolean; // For hybrid budgets: indicates whether this concept is a monthly recurring fee or punctual implementation
 }
 
 export interface Budget {

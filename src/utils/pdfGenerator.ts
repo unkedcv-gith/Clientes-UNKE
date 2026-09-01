@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { Budget } from '../types';
+import { Budget, ProjectType } from '../types';
 import { formatARS, formatDateAR } from './currency';
 
 export function generateBudgetPDF(budget: Budget): void {
@@ -79,9 +79,21 @@ export function generateBudgetPDF(budget: Budget): void {
   }
 
   // Project Type badge
-  const typeLabel = budget.projectType === 'mantenimiento' ? 'ABONO MENSUAL' : 'PROYECTO CERRADO';
+  const getProjectTypeLabel = (type: ProjectType) => {
+    switch (type) {
+      case 'mantenimiento':
+        return 'ABONO MENSUAL';
+      case 'hibrido':
+        return 'PROYECTO PUNTUAL + ABONO MENSUAL';
+      case 'proyecto':
+      default:
+        return 'PROYECTO PUNTUAL';
+    }
+  };
+
+  const typeLabel = getProjectTypeLabel(budget.projectType);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(52, 135, 124);
   doc.text(`TIPO: ${typeLabel}`, pageWidth - margin - 5, currentY + 12, { align: 'right' });
 
@@ -121,6 +133,7 @@ export function generateBudgetPDF(budget: Budget): void {
   budget.items.forEach((item, index) => {
     const isEven = index % 2 === 0;
     const rowHeight = 9;
+    const isItemMonthly = item.isMonthly || budget.projectType === 'mantenimiento';
 
     if (isEven) {
       doc.setFillColor(248, 250, 252);
@@ -128,16 +141,30 @@ export function generateBudgetPDF(budget: Budget): void {
     }
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
 
+    // If hybrid, suffix or prefix the item description
+    let descText = item.description;
+    if (budget.projectType === 'hibrido') {
+      descText = `[${isItemMonthly ? 'Mensual' : 'Puntual'}] ${descText}`;
+    }
+
     // Truncate long descriptions if needed
-    const splitDesc = doc.splitTextToSize(item.description, colWidthDesc - 6);
+    const splitDesc = doc.splitTextToSize(descText, colWidthDesc - 6);
     doc.text(splitDesc[0] || '', colDesc + 4, currentY + 6);
     doc.text(String(item.quantity || 1), colQty + 2, currentY + 6);
-    doc.text(formatARS(item.unitPrice, false), colPrice + 2, currentY + 6);
+
+    const priceText = isItemMonthly
+      ? `${formatARS(item.unitPrice, false)}/m`
+      : formatARS(item.unitPrice, false);
+    doc.text(priceText, colPrice + 2, currentY + 6);
+
     doc.setFont('helvetica', 'bold');
-    doc.text(formatARS(item.total, false), pageWidth - margin - 4, currentY + 6, { align: 'right' });
+    const totalText = isItemMonthly
+      ? `${formatARS(item.total, false)}/m`
+      : formatARS(item.total, false);
+    doc.text(totalText, pageWidth - margin - 4, currentY + 6, { align: 'right' });
 
     currentY += rowHeight;
 
@@ -148,12 +175,34 @@ export function generateBudgetPDF(budget: Budget): void {
 
   // Table summary & Totals Box
   currentY += 4;
-  const summaryBoxWidth = 75;
+  const summaryBoxWidth = 85;
   const summaryBoxX = pageWidth - margin - summaryBoxWidth;
+
+  // Breakdown for hybrid
+  if (budget.projectType === 'hibrido') {
+    const punctualSub = budget.items
+      .filter(i => !i.isMonthly)
+      .reduce((acc, curr) => acc + (curr.total || 0), 0);
+    const monthlySub = budget.items
+      .filter(i => i.isMonthly)
+      .reduce((acc, curr) => acc + (curr.total || 0), 0);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(180, 83, 9); // amber
+    doc.text('• Implementación puntual:', summaryBoxX, currentY + 3);
+    doc.text(formatARS(punctualSub, false), pageWidth - margin, currentY + 3, { align: 'right' });
+
+    doc.setTextColor(126, 34, 206); // purple
+    doc.text('• Abono mensual:', summaryBoxX, currentY + 7);
+    doc.text(`${formatARS(monthlySub, false)}/mes`, pageWidth - margin, currentY + 7, { align: 'right' });
+
+    currentY += 10;
+  }
 
   if (budget.discountPercentage && budget.discountPercentage > 0) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
     doc.text('Subtotal:', summaryBoxX, currentY + 4);
     doc.text(formatARS(budget.subtotal, false), pageWidth - margin, currentY + 4, { align: 'right' });
@@ -174,12 +223,17 @@ export function generateBudgetPDF(budget: Budget): void {
   doc.roundedRect(summaryBoxX - 4, currentY, summaryBoxWidth + 4, 12, 1.5, 1.5, 'S');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
+  doc.setFontSize(9.5);
   doc.setTextColor(52, 135, 124);
-  const totalLabel = budget.projectType === 'mantenimiento' ? 'TOTAL MENSUAL:' : 'TOTAL FINAL:';
+  const totalLabel =
+    budget.projectType === 'mantenimiento'
+      ? 'TOTAL MENSUAL:'
+      : budget.projectType === 'hibrido'
+      ? 'TOTAL ESTIMADO:'
+      : 'TOTAL FINAL:';
   doc.text(totalLabel, summaryBoxX, currentY + 7.5);
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
   doc.text(formatARS(budget.totalAmount, false), pageWidth - margin - 2, currentY + 7.5, { align: 'right' });
 

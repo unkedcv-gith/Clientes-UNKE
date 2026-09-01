@@ -71,7 +71,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   );
 
   const oneTimeProjects = activeProjects.filter(p => p.type === 'proyecto');
-  const retainers = projects.filter(p => p.type === 'mantenimiento' && p.status !== 'pausado');
+  const retainers = projects.filter(p => (p.type === 'mantenimiento' || p.type === 'hibrido') && p.status !== 'pausado');
 
   // MRR (Monthly Recurring Revenue from retainers)
   const monthlyRecurringRevenue = retainers.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
@@ -441,6 +441,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               {proj.type === 'mantenimiento' && (
                                 <span className="text-[9px] uppercase font-bold text-teal-400 bg-teal-950 px-1.5 py-0.5 rounded border border-teal-800">
                                   Abono
+                                </span>
+                              )}
+                              {proj.type === 'hibrido' && (
+                                <span className="text-[9px] uppercase font-bold text-cyan-400 bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-800">
+                                  Puntual + Abono
                                 </span>
                               )}
                             </div>

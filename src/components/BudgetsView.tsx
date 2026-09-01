@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Repeat,
   Layers,
+  GitMerge,
   Sparkles,
   X,
   PlusCircle,
@@ -149,7 +150,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   };
 
   // Line item helpers
-  const handleAddItem = () => {
+  const handleAddItem = (isMonthly = false) => {
     setFormItems(prev => [
       ...prev,
       {
@@ -158,6 +159,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         quantity: 1,
         unitPrice: 0,
         total: 0,
+        isMonthly: formProjectType === 'mantenimiento' ? true : isMonthly,
       },
     ]);
   };
@@ -169,15 +171,18 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
   const handleItemChange = (
     id: string,
-    field: 'description' | 'quantity' | 'unitPrice',
-    val: string | number
+    field: 'description' | 'quantity' | 'unitPrice' | 'isMonthly',
+    val: string | number | boolean
   ) => {
     setFormItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
+        if (field === 'isMonthly') {
+          return { ...item, isMonthly: Boolean(val) };
+        }
         const next = { ...item, [field]: val };
         const qty = Number(field === 'quantity' ? val : item.quantity) || 1;
-        const price = field === 'unitPrice' ? parseARS(val) : item.unitPrice;
+        const price = field === 'unitPrice' ? parseARS(val as string | number) : item.unitPrice;
         next.unitPrice = price;
         next.total = qty * price;
         return next;
@@ -185,7 +190,13 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
     );
   };
 
-  // Calculations
+  // Calculations for punctual vs monthly items
+  const punctualItems = formItems.filter(item => !item.isMonthly && formProjectType !== 'mantenimiento');
+  const monthlyItems = formItems.filter(item => item.isMonthly || formProjectType === 'mantenimiento');
+
+  const punctualSubtotal = punctualItems.reduce((acc, item) => acc + (item.total || 0), 0);
+  const monthlySubtotal = monthlyItems.reduce((acc, item) => acc + (item.total || 0), 0);
+
   const calculatedSubtotal = formItems.reduce((acc, item) => acc + (item.total || 0), 0);
   const calculatedDiscountAmount = (calculatedSubtotal * (Number(formDiscount) || 0)) / 100;
   const calculatedTotal = Math.max(0, calculatedSubtotal - calculatedDiscountAmount);
@@ -400,6 +411,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
             <option value="all">Todas las modalidades</option>
             <option value="proyecto">Proyecto Puntual</option>
             <option value="mantenimiento">Abono Mensual</option>
+            <option value="hibrido">Proyecto Puntual + Abono</option>
           </select>
         </div>
       </div>
@@ -453,10 +465,16 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                       budget.projectType === 'mantenimiento'
                         ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                        : budget.projectType === 'hibrido'
+                        ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30'
                         : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                     }`}
                   >
-                    {budget.projectType === 'mantenimiento' ? 'Abono Mensual' : 'Proyecto'}
+                    {budget.projectType === 'mantenimiento'
+                      ? 'Abono Mensual'
+                      : budget.projectType === 'hibrido'
+                      ? 'Puntual + Abono'
+                      : 'Proyecto Puntual'}
                   </span>
 
                   {/* Bank Account indicator */}
@@ -611,7 +629,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Modalidad del Trabajo *
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setFormProjectType('proyecto')}
@@ -625,6 +643,9 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                           <Layers className="w-3.5 h-3.5 text-[#34877c]" />
                           <span className="truncate">Proyecto Puntual</span>
                         </div>
+                        <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
+                          Entrega única
+                        </p>
                       </button>
 
                       <button
@@ -637,9 +658,30 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                         }`}
                       >
                         <div className="font-bold flex items-center gap-1.5">
-                          <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+                          <Repeat className="w-3.5 h-3.5 text-purple-400" />
                           <span className="truncate">Abono Mensual</span>
                         </div>
+                        <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
+                          Recurrente
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormProjectType('hibrido')}
+                        className={`p-2 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          formProjectType === 'hibrido'
+                            ? 'border-[#34877c] bg-[#34877c]/10 text-[#34877c] dark:text-teal-200 ring-2 ring-[#34877c]'
+                            : 'border-slate-200 dark:border-[#777777]/30 text-slate-600 dark:text-[#888888] hover:border-slate-300 dark:hover:border-[#777777]/50'
+                        }`}
+                      >
+                        <div className="font-bold flex items-center gap-1.5">
+                          <GitMerge className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="truncate">Puntual + Abono</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
+                          Fusión ambos
+                        </p>
                       </button>
                     </div>
                   </div>
@@ -835,24 +877,63 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                   {/* Items Table Builder */}
                   <div className="border border-slate-200 dark:border-[#777777]/20 rounded-2xl p-3.5 bg-slate-50/70 dark:bg-[#141414]/90 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                        Conceptos & Entregables cotizados
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleAddItem}
-                        className="flex items-center gap-1 text-xs font-bold text-[#34877c] hover:text-[#276961] dark:hover:text-[#44a598] transition-colors cursor-pointer"
-                      >
-                        <PlusCircle className="w-3.5 h-3.5" />
-                        <span>+ Agregar Fila</span>
-                      </button>
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          Conceptos & Entregables cotizados
+                        </span>
+                        {formProjectType === 'hibrido' && (
+                          <p className="text-[10px] text-teal-600 dark:text-teal-400 font-medium">
+                            Indicá si cada concepto es de implementación única o cuota mensual
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {formProjectType === 'hibrido' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(false)}
+                              className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                            >
+                              <PlusCircle className="w-3 h-3" />
+                              <span>+ Puntual</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(true)}
+                              className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 transition-colors cursor-pointer"
+                            >
+                              <PlusCircle className="w-3 h-3" />
+                              <span>+ Mensual</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAddItem(false)}
+                            className="flex items-center gap-1 text-xs font-bold text-[#34877c] hover:text-[#276961] dark:hover:text-[#44a598] transition-colors cursor-pointer"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5" />
+                            <span>+ Agregar Fila</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Table headers */}
                     <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-slate-500 dark:text-[#777777] px-1">
-                      <div className="col-span-6">DESCRIPCIÓN / SERVICIO</div>
-                      <div className="col-span-2 text-center">CANT.</div>
-                      <div className="col-span-3 text-right">PRECIO ($ ARS)</div>
+                      <div className={formProjectType === 'hibrido' ? 'col-span-5' : 'col-span-6'}>
+                        DESCRIPCIÓN / SERVICIO
+                      </div>
+                      {formProjectType === 'hibrido' && (
+                        <div className="col-span-2 text-center">TIPO</div>
+                      )}
+                      <div className={formProjectType === 'hibrido' ? 'col-span-1 text-center' : 'col-span-2 text-center'}>
+                        CANT.
+                      </div>
+                      <div className={formProjectType === 'hibrido' ? 'col-span-3 text-right' : 'col-span-3 text-right'}>
+                        PRECIO ($ ARS)
+                      </div>
                       <div className="col-span-1 text-center"></div>
                     </div>
 
@@ -862,7 +943,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                           key={item.id}
                           className="grid grid-cols-12 gap-2 items-center bg-white dark:bg-[#202020] p-1.5 rounded-xl border border-slate-200 dark:border-[#777777]/20 shadow-xs"
                         >
-                          <div className="col-span-6">
+                          <div className={formProjectType === 'hibrido' ? 'col-span-5' : 'col-span-6'}>
                             <input
                               type="text"
                               value={item.description}
@@ -875,7 +956,26 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                             />
                           </div>
 
-                          <div className="col-span-2">
+                          {formProjectType === 'hibrido' && (
+                            <div className="col-span-2">
+                              <select
+                                value={item.isMonthly ? 'mensual' : 'puntual'}
+                                onChange={e =>
+                                  handleItemChange(item.id, 'isMonthly', e.target.value === 'mensual')
+                                }
+                                className={`w-full text-[10px] font-bold px-1.5 py-1.5 rounded-lg border cursor-pointer outline-none ${
+                                  item.isMonthly
+                                    ? 'bg-purple-950/40 text-purple-300 border-purple-700/50'
+                                    : 'bg-amber-950/40 text-amber-300 border-amber-700/50'
+                                }`}
+                              >
+                                <option value="puntual">Puntual</option>
+                                <option value="mensual">Mensual</option>
+                              </select>
+                            </div>
+                          )}
+
+                          <div className={formProjectType === 'hibrido' ? 'col-span-1' : 'col-span-2'}>
                             <input
                               type="number"
                               min={1}
@@ -883,7 +983,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
                               onChange={e =>
                                 handleItemChange(item.id, 'quantity', e.target.value)
                               }
-                              className="w-full text-xs px-2 py-1.5 text-center bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200"
+                              className="w-full text-xs px-1.5 py-1.5 text-center bg-slate-50 dark:bg-[#141414] border border-slate-200 dark:border-[#777777]/30 rounded-lg text-slate-800 dark:text-slate-200"
                             />
                           </div>
 
@@ -919,6 +1019,27 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
                     {/* Subtotals and Discount */}
                     <div className="pt-2 border-t border-slate-200 dark:border-[#777777]/20 flex flex-col items-end gap-1.5 text-xs">
+                      {formProjectType === 'hibrido' && (
+                        <div className="w-72 space-y-1 bg-slate-100 dark:bg-[#1a1a1a] p-2 rounded-xl border border-slate-200 dark:border-[#777777]/20 mb-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-amber-600 dark:text-amber-300 font-semibold flex items-center gap-1">
+                              <span>• Implementación Puntual:</span>
+                            </span>
+                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              {formatARS(punctualSubtotal)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-purple-600 dark:text-purple-300 font-semibold flex items-center gap-1">
+                              <span>• Actualización Mensual:</span>
+                            </span>
+                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              {formatARS(monthlySubtotal)}/mes
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between w-64 text-slate-500 dark:text-[#888888]">
                         <span>Subtotal bruto:</span>
                         <span className="font-mono">{formatARS(calculatedSubtotal)}</span>
@@ -943,7 +1064,11 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
                       <div className="flex items-center justify-between w-64 pt-1.5 border-t border-slate-200 dark:border-[#777777]/20 text-sm font-bold text-slate-900 dark:text-white">
                         <span className="text-[#34877c] uppercase">
-                          {formProjectType === 'mantenimiento' ? 'Total Mensual:' : 'Total Presupuesto:'}
+                          {formProjectType === 'mantenimiento'
+                            ? 'Total Mensual:'
+                            : formProjectType === 'hibrido'
+                            ? 'Total Combinado:'
+                            : 'Total Presupuesto:'}
                         </span>
                         <span className="text-base font-black text-[#34877c] font-mono">
                           {formatARS(calculatedTotal)}

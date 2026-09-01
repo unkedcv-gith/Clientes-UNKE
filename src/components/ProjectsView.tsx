@@ -16,6 +16,7 @@ import {
   Edit2,
   Repeat,
   Layers,
+  GitMerge,
   ChevronRight,
   User,
   PlusCircle,
@@ -210,7 +211,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         paymentStatus: formPaymentStatus,
         totalAmount,
         paidAmount,
-        monthlyBillingDay: formType === 'mantenimiento' ? Number(formMonthlyBillingDay) : undefined,
+        monthlyBillingDay: formType === 'mantenimiento' || formType === 'hibrido' ? Number(formMonthlyBillingDay) : undefined,
         startDate: formStartDate,
         deliveryDate: formDeliveryDate,
         tags,
@@ -227,7 +228,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         paymentStatus: formPaymentStatus,
         totalAmount,
         paidAmount,
-        monthlyBillingDay: formType === 'mantenimiento' ? Number(formMonthlyBillingDay) : undefined,
+        monthlyBillingDay: formType === 'mantenimiento' || formType === 'hibrido' ? Number(formMonthlyBillingDay) : undefined,
         startDate: formStartDate,
         deliveryDate: formDeliveryDate,
         tags,
@@ -408,6 +409,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             <option value="all">Todos los Tipos</option>
             <option value="proyecto">📦 Proyectos Puntuales</option>
             <option value="mantenimiento">🔄 Abonos Mensuales</option>
+            <option value="hibrido">⚡ Puntual + Abono Mensual</option>
           </select>
 
           {/* Status Filter */}
@@ -479,6 +481,11 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-950/60 text-sky-300 border border-sky-800">
                             <Repeat className="w-3 h-3" />
                             Abono Mensual (Día {project.monthlyBillingDay || 5})
+                          </span>
+                        ) : project.type === 'hibrido' ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-950/60 text-teal-300 border border-teal-800">
+                            <GitMerge className="w-3 h-3" />
+                            Puntual + Abono
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-[#141414] text-[#aaaaaa] border border-[#777777]/20">
@@ -754,12 +761,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 
                 {/* Column 1 (Left - 6 Cols on Desktop): General Details, Client, Dates, Amounts */}
                 <div className="lg:col-span-6 space-y-3.5">
-                  {/* Type selector (Puntual vs Mantenimiento mensual) */}
+                  {/* Type selector (Puntual vs Mantenimiento mensual vs Hibrido) */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Modalidad del Trabajo *
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setFormType('proyecto')}
@@ -774,7 +781,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                           <span className="truncate">Proyecto Puntual</span>
                         </div>
                         <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
-                          Precio cerrado por entregables
+                          Entrega única
                         </p>
                       </button>
 
@@ -788,11 +795,29 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                         }`}
                       >
                         <div className="font-bold flex items-center gap-1.5">
-                          <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+                          <Repeat className="w-3.5 h-3.5 text-purple-400" />
                           <span className="truncate">Abono Mensual</span>
                         </div>
                         <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
-                          Cobro recurrente por mes
+                          Recurrente
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormType('hibrido')}
+                        className={`p-2 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          formType === 'hibrido'
+                            ? 'border-[#34877c] bg-[#34877c]/10 text-[#34877c] dark:text-teal-200 ring-2 ring-[#34877c]'
+                            : 'border-slate-200 dark:border-[#777777]/30 text-slate-600 dark:text-[#888888] hover:border-slate-300 dark:hover:border-[#777777]/50'
+                        }`}
+                      >
+                        <div className="font-bold flex items-center gap-1.5">
+                          <GitMerge className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="truncate">Puntual + Abono</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-[#777777] mt-0.5 line-clamp-1">
+                          Fusión ambos
                         </p>
                       </button>
                     </div>
