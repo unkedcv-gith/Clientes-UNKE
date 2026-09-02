@@ -38,15 +38,23 @@ jobs:
         run: npm run build
 
       - name: 📂 Sync files to Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT || 21 }}
-          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
-          security: loose
-          timeout: 60000
-          local-dir: ./dist/
-          server-dir: /domains/unke.com.ar/public_html/clientes/
-          dangerous-clean-slate: false
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT || '21' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y lftp
+          lftp -d -e "
+            set dns:order 'inet inet6';
+            set net:timeout 30;
+            set net:max-retries 3;
+            set ftp:passive-mode true;
+            set ftp:ssl-allow true;
+            set ssl:verify-certificate false;
+            open -u $FTP_USERNAME,$FTP_PASSWORD -p $FTP_PORT $FTP_SERVER;
+            mkdir -p /domains/unke.com.ar/public_html/clientes/;
+            mirror -R -v --delete-first dist/ /domains/unke.com.ar/public_html/clientes/;
+            quit
+          "
+
