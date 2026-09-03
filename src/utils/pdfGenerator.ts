@@ -14,6 +14,28 @@ export function generateBudgetPDF(budget: Budget): void {
   const contentWidth = pageWidth - margin * 2;
   let currentY = margin;
 
+  const footerY = doc.internal.pageSize.getHeight() - 14;
+
+  const drawFooter = () => {
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('UNKE • Estudio de Diseño y Comunicación • unkedcv@gmail.com', margin, footerY);
+    doc.text('Valores expresados en Pesos Argentinos (ARS)', pageWidth - margin, footerY, { align: 'right' });
+  };
+
+  const checkPageBreak = (neededHeight: number) => {
+    if (currentY + neededHeight > footerY - 10) {
+      drawFooter();
+      doc.addPage();
+      currentY = margin;
+      return true; // indicates a page break happened
+    }
+    return false;
+  };
+
   // Header Background Accent Bar
   doc.setFillColor(52, 135, 124); // #34877c (UNKE Teal)
   doc.rect(0, 0, pageWidth, 7, 'F');
@@ -133,6 +155,22 @@ export function generateBudgetPDF(budget: Budget): void {
   budget.items.forEach((item, index) => {
     const isEven = index % 2 === 0;
     const rowHeight = 9;
+    
+    // Check if we need a page break for this row
+    if (checkPageBreak(rowHeight)) {
+      // Re-draw table header on new page
+      doc.setFillColor(52, 135, 124);
+      doc.rect(margin, currentY, contentWidth, 8, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text('DESCRIPCIÓN / ENTREGABLES', colDesc + 4, currentY + 5.5);
+      doc.text('CANT.', colQty + 2, currentY + 5.5);
+      doc.text('P. UNITARIO', colPrice + 2, currentY + 5.5);
+      doc.text('TOTAL (ARS)', pageWidth - margin - 4, currentY + 5.5, { align: 'right' });
+      currentY += 8;
+    }
+
     const isItemMonthly = item.isMonthly || budget.projectType === 'mantenimiento';
 
     if (isEven) {
@@ -175,6 +213,8 @@ export function generateBudgetPDF(budget: Budget): void {
 
   // Table summary & Totals Box
   currentY += 4;
+  checkPageBreak(30); // Need space for totals box
+
   const summaryBoxWidth = 85;
   const summaryBoxX = pageWidth - margin - summaryBoxWidth;
 
@@ -241,6 +281,7 @@ export function generateBudgetPDF(budget: Budget): void {
 
   // Deliverables Clarification & Detailed Scope
   if (budget.deliverablesClarification) {
+    checkPageBreak(30);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(52, 135, 124);
@@ -266,6 +307,9 @@ export function generateBudgetPDF(budget: Budget): void {
       const isBullet = /^\s*([•\-\*]|\d+\.)\s*/.test(line);
       const text = isBullet ? line.replace(/^\s*([•\-\*]|\d+\.)\s*/, '• ') : line;
       const splitLines = doc.splitTextToSize(text, contentWidth);
+      
+      checkPageBreak(splitLines.length * 3.5 + 4);
+      
       doc.text(splitLines, margin + (isBullet ? 2 : 0), currentY);
       currentY += splitLines.length * 3.5;
     });
@@ -274,6 +318,7 @@ export function generateBudgetPDF(budget: Budget): void {
   }
 
   // Bank & Payment Information
+  checkPageBreak(35);
   doc.setFillColor(248, 250, 252);
   doc.rect(margin, currentY, contentWidth, 28, 'F');
   doc.setDrawColor(226, 232, 240);
@@ -301,6 +346,12 @@ export function generateBudgetPDF(budget: Budget): void {
 
   // Terms & Notes
   if (budget.notesAndTerms) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const splitTerms = doc.splitTextToSize(budget.notesAndTerms, contentWidth);
+    
+    checkPageBreak(splitTerms.length * 3.5 + 10);
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
@@ -310,20 +361,11 @@ export function generateBudgetPDF(budget: Budget): void {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    const splitTerms = doc.splitTextToSize(budget.notesAndTerms, contentWidth);
     doc.text(splitTerms, margin, currentY);
   }
 
   // Bottom Footer
-  const footerY = doc.internal.pageSize.getHeight() - 14;
-  doc.setDrawColor(226, 232, 240);
-  doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(148, 163, 184);
-  doc.text('UNKE • Estudio de Diseño y Comunicación • unkedcv@gmail.com', margin, footerY);
-  doc.text('Valores expresados en Pesos Argentinos (ARS)', pageWidth - margin, footerY, { align: 'right' });
+  drawFooter();
 
   // Save PDF
   const filename = `Presupuesto_UNKE_${budget.number || '001'}_${budget.clientName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;

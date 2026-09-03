@@ -6,7 +6,7 @@ import { ProjectsView } from './components/ProjectsView';
 import { BudgetsView } from './components/BudgetsView';
 import { ClientsView } from './components/ClientsView';
 import { PostItBoardView } from './components/PostItBoardView';
-import { CalendarView } from './components/CalendarView';
+import { ExpensesView } from './components/ExpensesView';
 import { TeamLoginModal } from './components/TeamLoginModal';
 import { BackupModal } from './components/BackupModal';
 import { LoginScreen } from './components/LoginScreen';
@@ -87,7 +87,7 @@ const MainAppContent: React.FC = () => {
 
         {activeTab === 'postits' && <PostItBoardView />}
 
-        {activeTab === 'calendario' && <CalendarView />}
+        {activeTab === 'gastos' && <ExpensesView />}
       </main>
 
       {/* Bento Footer */}

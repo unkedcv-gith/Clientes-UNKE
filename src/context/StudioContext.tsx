@@ -8,6 +8,7 @@ import {
   PostIt,
   Project,
   TeamMember,
+  Expense,
 } from '../types';
 import {
   DEFAULT_STUDIO_BANK,
@@ -17,6 +18,7 @@ import {
   INITIAL_BUDGETS,
   INITIAL_CLIENTS,
   INITIAL_POSTITS,
+  INITIAL_EXPENSES,
   INITIAL_PROJECTS,
   loadFromStorage,
   saveToStorage,
@@ -87,6 +89,12 @@ interface StudioContextType {
   updatePostIt: (id: string, data: Partial<PostIt>) => void;
   deletePostIt: (id: string) => void;
 
+  // Expenses
+  expenses: Expense[];
+  addExpense: (data: Omit<Expense, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => Expense;
+  updateExpense: (id: string, data: Partial<Expense>) => void;
+  deleteExpense: (id: string) => void;
+
   // Audit Logs
   auditLogs: AuditLogItem[];
 
@@ -107,15 +115,15 @@ interface StudioContextType {
   resetToSampleData: () => void;
 
   // Navigation
-  activeTab: 'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'calendario';
-  setActiveTab: (tab: 'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'calendario') => void;
+  activeTab: 'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'gastos';
+  setActiveTab: (tab: 'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'gastos') => void;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'calendario'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'proyectos' | 'presupuestos' | 'clientes' | 'postits' | 'gastos'>('dashboard');
 
   // Dark Mode
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -226,6 +234,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return loadFromStorage(STORAGE_KEYS.POSTITS, INITIAL_POSTITS);
   });
 
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    return loadFromStorage(STORAGE_KEYS.EXPENSES, INITIAL_EXPENSES);
+  });
+
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => {
     return loadFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
   });
@@ -293,6 +305,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     // 4. Post-its
+    const unsubExpenses = FirestoreService.subscribeExpenses(cloudExpenses => {
+      setExpenses(cloudExpenses);
+      saveToStorage(STORAGE_KEYS.EXPENSES, cloudExpenses);
+    });
     const unsubPostIts = FirestoreService.subscribePostIts(cloudPostIts => {
       setPostIts(cloudPostIts);
       saveToStorage(STORAGE_KEYS.POSTITS, cloudPostIts);
@@ -329,6 +345,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubProjects();
       unsubBudgets();
       unsubPostIts();
+      unsubExpenses();
       unsubAudit();
       unsubTeam();
       unsubBank();
@@ -828,7 +845,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // BUDGETS CRUD
   const addBudget = useCallback((budgetData: Omit<Budget, 'id' | 'number' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>): Budget => {
     const year = new Date().getFullYear();
-    const count = budgets.length + 1;
+    let maxCount = 173;
+    budgets.forEach(b => {
+      const match = b.number.match(/PRES-\d{4}-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxCount) maxCount = num;
+      }
+    });
+    const count = maxCount + 1;
     const number = `PRES-${year}-${String(count).padStart(3, '0')}`;
 
     const newBudget: Budget = {
@@ -888,7 +913,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!original) throw new Error('Presupuesto no encontrado');
 
     const year = new Date().getFullYear();
-    const count = budgets.length + 1;
+    let maxCount = 173;
+    budgets.forEach(b => {
+      const match = b.number.match(/PRES-\d{4}-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxCount) maxCount = num;
+      }
+    });
+    const count = maxCount + 1;
     const number = `PRES-${year}-${String(count).padStart(3, '0')}`;
 
     const duplicated: Budget = {
@@ -1040,6 +1073,64 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     FirestoreService.deletePostIt(id);
   }, []);
 
+  const addExpense = useCallback((data: Omit<Expense, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>): Expense => {
+    const newExpense: Expense = {
+      ...data,
+      id: `exp_${generateId()}`,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.id,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.id,
+    };
+    setExpenses(prev => {
+      const next = [...prev, newExpense];
+      saveToStorage(STORAGE_KEYS.EXPENSES, next);
+      return next;
+    });
+    FirestoreService.saveExpense(newExpense);
+    addAuditLog('creó', 'gasto' as any, newExpense.id, `Registró el gasto: ${data.description}`);
+    return newExpense;
+  }, [currentUser.id, addAuditLog]);
+
+  const updateExpense = useCallback((id: string, data: Partial<Expense>) => {
+    setExpenses(prev => {
+      const next = prev.map(e =>
+        e.id === id
+          ? {
+              ...e,
+              ...data,
+              updatedAt: new Date().toISOString(),
+              updatedBy: currentUser.id,
+            }
+          : e
+      );
+      saveToStorage(STORAGE_KEYS.EXPENSES, next);
+      
+      const updated = next.find(e => e.id === id);
+      if (updated) {
+        FirestoreService.saveExpense(updated);
+        if (data.description || data.amount) {
+          addAuditLog('editó', 'gasto' as any, id, `Actualizó el gasto: ${updated.description}`);
+        }
+      }
+      return next;
+    });
+  }, [currentUser.id, addAuditLog]);
+
+  const deleteExpense = useCallback((id: string) => {
+    const target = expenses.find(e => e.id === id);
+    setExpenses(prev => {
+      const next = prev.filter(e => e.id !== id);
+      saveToStorage(STORAGE_KEYS.EXPENSES, next);
+      return next;
+    });
+    FirestoreService.deleteExpense(id);
+    if (target) {
+      addAuditLog('eliminó', 'gasto' as any, id, `Eliminó el gasto: ${target.description}`);
+    }
+  }, [expenses, addAuditLog]);
+
+
   // BACKUP & RESTORE
   const exportDataJSON = useCallback(() => {
     const bundle = {
@@ -1144,6 +1235,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addPostIt,
         updatePostIt,
         deletePostIt,
+        expenses,
+        addExpense,
+        updateExpense,
+        deleteExpense,
         auditLogs,
         darkMode,
         setDarkMode,

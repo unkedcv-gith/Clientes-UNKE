@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   PROJECTS: 'unke_projects_v4',
   BUDGETS: 'unke_budgets_v4',
   POSTITS: 'unke_postits_v4',
+  EXPENSES: 'unke_expenses_v4',
   TEAM: 'unke_team_members_v4',
   CURRENT_USER_ID: 'unke_current_user_id_v4',
   AUDIT_LOGS: 'unke_audit_logs_v4',
@@ -93,6 +94,7 @@ export const INITIAL_CLIENTS: Client[] = [];
 export const INITIAL_PROJECTS: Project[] = [];
 export const INITIAL_BUDGETS: Budget[] = [];
 export const INITIAL_POSTITS: PostIt[] = [];
+export const INITIAL_EXPENSES: any[] = [];
 export const INITIAL_AUDIT_LOGS: AuditLogItem[] = [];
 
 // Helper functions for loading and saving

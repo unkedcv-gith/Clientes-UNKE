@@ -62,6 +62,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [previewBudget, setPreviewBudget] = useState<Budget | null>(null);
+  const [budgetToDelete, setBudgetToDelete] = useState<Budget | null>(null);
 
   // Form State
   const [formTitle, setFormTitle] = useState('');
@@ -568,11 +569,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
                   {/* Delete */}
                   <button
-                    onClick={() => {
-                      if (window.confirm(`¿Eliminar el presupuesto ${budget.number}?`)) {
-                        deleteBudget(budget.id);
-                      }
-                    }}
+                    onClick={() => setBudgetToDelete(budget)}
                     className="p-1.5 bg-[#141414] hover:bg-rose-950/40 text-[#aaaaaa] hover:text-rose-400 border border-[#777777]/25 hover:border-rose-800 rounded-xl transition-colors cursor-pointer"
                     title="Eliminar"
                   >
@@ -1112,6 +1109,47 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         onClose={() => setPreviewBudget(null)}
         onConvertToProject={handleConvertToProject}
       />
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {budgetToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#202020] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-500/30 space-y-4 text-white animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-950/60 rounded-xl border border-rose-800/60 text-rose-400">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">¿Eliminar Presupuesto?</h3>
+                <p className="text-xs text-[#888888]">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-slate-300">
+              ¿Estás seguro que deseas eliminar el presupuesto <strong className="text-white font-bold">{budgetToDelete.number}</strong> ({budgetToDelete.title})?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#777777]/20">
+              <button
+                type="button"
+                onClick={() => setBudgetToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#888888] hover:text-white hover:bg-[#141414]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteBudget(budgetToDelete.id);
+                  setBudgetToDelete(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-500/20"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

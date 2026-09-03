@@ -7,7 +7,7 @@ import {
   FileText,
   Users,
   StickyNote,
-  Calendar,
+  Calendar, Receipt,
   AlertTriangle,
   Plus,
   FilePlus,
@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'presupuestos' as const, label: 'Presupuestos', icon: FileText },
     { id: 'clientes' as const, label: 'Clientes', icon: Users },
     { id: 'postits' as const, label: 'Notas', icon: StickyNote },
-    { id: 'calendario' as const, label: 'Calendario', icon: Calendar },
+    { id: 'gastos' as const, label: 'Gastos', icon: Receipt },
   ];
 
   // List of all connected/active members

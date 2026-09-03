@@ -176,3 +176,15 @@ export interface ActiveUserPresence {
   editingItemTitle?: string | null;
   lastHeartbeat: number;
 }
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  category?: string; // Optional, maybe we don't need it if simple
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}

@@ -23,6 +23,7 @@ const CLIENTS_COLLECTION = 'clients';
 const PROJECTS_COLLECTION = 'projects';
 const BUDGETS_COLLECTION = 'budgets';
 const POSTITS_COLLECTION = 'postits';
+const EXPENSES_COLLECTION = 'expenses';
 const AUDIT_LOGS_COLLECTION = 'audit_logs';
 const TEAM_COLLECTION = 'team';
 const PRESENCES_COLLECTION = 'presences';
@@ -92,6 +93,17 @@ export const FirestoreService = {
         callback(items);
       },
       error => console.error('Error in postits snapshot:', error)
+    );
+  },
+
+  subscribeExpenses(callback: (expenses: any[]) => void) {
+    return onSnapshot(
+      collection(db, EXPENSES_COLLECTION),
+      snapshot => {
+        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        callback(items);
+      },
+      error => console.error('Error in expenses snapshot:', error)
     );
   },
 
@@ -227,6 +239,23 @@ export const FirestoreService = {
       await deleteDoc(doc(db, POSTITS_COLLECTION, id));
     } catch (err) {
       console.error('Error deleting post-it from Firestore:', err);
+    }
+  },
+
+  async saveExpense(expense: any) {
+    try {
+      const sanitized = sanitizeForFirestore(expense);
+      await setDoc(doc(db, EXPENSES_COLLECTION, expense.id), sanitized);
+    } catch (err) {
+      console.error('Error saving expense to Firestore:', err);
+    }
+  },
+
+  async deleteExpense(id: string) {
+    try {
+      await deleteDoc(doc(db, EXPENSES_COLLECTION, id));
+    } catch (err) {
+      console.error('Error deleting expense from Firestore:', err);
     }
   },
 
