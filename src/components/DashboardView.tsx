@@ -54,7 +54,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     toggleMonthlyPayment,
     addPostIt,
     deletePostIt,
+    updateClient,
   } = useStudio();
+
+  // Host Renewal Alerts Logic
+  const currentYear = new Date().getFullYear();
+  const currentDate = new Date();
+  const currentDay = currentDate.getDate();
+  const globalCurrentMonthStr = new Date().toISOString().slice(0, 7); // e.g. "2026-08"
+  
+  const upcomingRenewals = clients.filter(c => {
+    if (!c.ourHost || !c.hostStartDate) return false;
+    if (c.hostAlertDismissedYear === currentYear) return false;
+    
+    const startDate = new Date(c.hostStartDate);
+    const anniversary = new Date(currentYear, startDate.getMonth(), startDate.getDate());
+    
+    const diffTime = anniversary.getTime() - currentDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 && diffDays <= 30;
+  });
+
+  const dismissRenewalAlert = (clientId: string) => {
+    updateClient(clientId, { hostAlertDismissedYear: currentYear });
+  };
+
+  // Overdue Monthly Retainers Logic (Abonos Vencidos)
+  const globalRetainers = projects.filter(
+    p => p.type === 'mantenimiento' || p.type === 'hibrido'
+  );
+  
+  const overdueRetainers = globalRetainers.filter(ret => {
+    const isPaidThisMonth = ret.lastMonthlyPaymentDate === globalCurrentMonthStr;
+    const billingDay = ret.monthlyBillingDay || 15;
+    // Overdue if not paid this month AND today's date is strictly greater than the limit day
+    return !isPaidThisMonth && currentDay > billingDay;
+  });
 
   // Quick note input state
   const [showQuickNoteForm, setShowQuickNoteForm] = useState(false);
@@ -249,6 +285,77 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Overdue Retainers Banner */}
+      {overdueRetainers.length > 0 && (
+        <div className="bg-rose-950/40 border border-rose-900/50 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-lg">
+          <div className="flex items-start gap-3 text-white">
+            <div className="p-2 bg-rose-600 rounded-xl text-white mt-1 md:mt-0 shrink-0">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-rose-100">Abonos Pendientes de Cobro</h3>
+              <p className="text-xs text-rose-300 mt-0.5">
+                Hay {overdueRetainers.length} abono{overdueRetainers.length > 1 ? 's' : ''} mensual{overdueRetainers.length > 1 ? 'es' : ''} vencido{overdueRetainers.length > 1 ? 's' : ''} este mes.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            {overdueRetainers.map(ret => (
+              <div key={ret.id} className="flex items-center justify-between bg-rose-950/60 px-3 py-2 rounded-lg border border-rose-900/50 gap-4">
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs text-rose-100">{ret.clientName}</span>
+                  <span className="text-[10px] text-rose-300">
+                    Día límite: {ret.monthlyBillingDay || 15} - {formatARS(ret.totalAmount)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => toggleMonthlyPayment(ret.id, globalCurrentMonthStr)}
+                  className="px-2.5 py-1 bg-rose-800 hover:bg-rose-700 text-white rounded border border-rose-700/50 transition-colors text-[10px] font-bold whitespace-nowrap"
+                >
+                  Marcar Cobrado
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Renewals Banner */}
+      {upcomingRenewals.length > 0 && (
+        <div className="bg-[#34877c]/20 border border-[#34877c]/40 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-lg">
+          <div className="flex items-start gap-3 text-white">
+            <div className="p-2 bg-[#34877c] rounded-xl text-white mt-1 md:mt-0 shrink-0">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Próximas renovaciones de Hosting</h3>
+              <p className="text-xs text-[#aaaaaa] mt-0.5">
+                Hay {upcomingRenewals.length} cliente{upcomingRenewals.length > 1 ? 's' : ''} con renovación de hosting en los próximos 30 días.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            {upcomingRenewals.map(client => (
+              <div key={client.id} className="flex items-center justify-between bg-[#141414] px-3 py-2 rounded-lg border border-[#777777]/20 gap-4">
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs text-white">{client.name}</span>
+                  <span className="text-[10px] text-emerald-400">
+                    {formatDateAR(new Date(currentYear, new Date(client.hostStartDate!).getMonth(), new Date(client.hostStartDate!).getDate()).toISOString().split('T')[0])} 
+                    {client.hostAmount ? ` - ${formatARS(client.hostAmount)}` : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={() => dismissRenewalAlert(client.id)}
+                  className="px-2.5 py-1 bg-[#202020] hover:bg-[#34877c] text-[#aaaaaa] hover:text-white rounded border border-[#777777]/30 transition-colors text-[10px] font-bold"
+                >
+                  Ocultar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Bento Grid Top Layer (12 Columns) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Bento Tile 1: Hero Facturación Mensual / Ingreso Real Mensual e Historial (Span 4) */}
@@ -879,14 +986,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               ) : (
                 retainers.map(ret => {
                   const isPaidThisMonth = ret.lastMonthlyPaymentDate === currentMonthStr;
+                  const isOverdue = !isPaidThisMonth && currentDay > (ret.monthlyBillingDay || 15);
                   return (
                     <tr key={ret.id} className="hover:bg-[#272727] transition-colors">
                       <td className="py-2.5 pr-2">
-                        <div className="font-bold text-white">{ret.clientName}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-white">{ret.clientName}</div>
+                          {isOverdue && (
+                            <span className="bg-rose-900/60 text-rose-300 border border-rose-700/50 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">Vencido</span>
+                          )}
+                        </div>
                         <div className="text-[#888888] truncate max-w-xs">{ret.title}</div>
                       </td>
                       <td className="py-2.5 text-[#aaaaaa]">
-                        Día {ret.monthlyBillingDay || 5} de c/mes
+                        Día {ret.monthlyBillingDay || 15} de c/mes
                       </td>
                       <td className="py-2.5 font-bold font-mono text-white">
                         {formatARS(ret.totalAmount)}

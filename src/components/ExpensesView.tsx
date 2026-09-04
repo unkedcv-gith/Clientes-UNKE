@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStudio } from '../context/StudioContext';
-import { formatARS, formatDateAR } from '../utils/currency';
+import { formatARS, formatDateAR, parseARS, formatAmountInput } from '../utils/currency';
 import { Receipt, Plus, Trash2, Edit2, Search } from 'lucide-react';
 import { Expense } from '../types';
 
@@ -38,7 +38,7 @@ export const ExpensesView: React.FC = () => {
   const handleOpenEdit = (expense: Expense) => {
     setEditingExpense(expense);
     setFormDesc(expense.description);
-    setFormAmount(expense.amount.toString());
+    setFormAmount(formatAmountInput(expense.amount));
     setFormDate(expense.date);
     setIsModalOpen(true);
   };
@@ -47,7 +47,7 @@ export const ExpensesView: React.FC = () => {
     e.preventDefault();
     if (!formDesc || !formAmount || !formDate) return;
     
-    const amountNum = parseFloat(formAmount);
+    const amountNum = parseARS(formAmount);
 
     if (editingExpense) {
       updateExpense(editingExpense.id, {
@@ -192,12 +192,10 @@ export const ExpensesView: React.FC = () => {
                   Monto (ARS)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
                   required
                   value={formAmount}
-                  onChange={(e) => setFormAmount(e.target.value)}
+                  onChange={(e) => setFormAmount(formatAmountInput(e.target.value))}
                   className="w-full bg-[#141414] border border-[#777777]/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#34877c] transition-colors"
                   placeholder="0.00"
                 />

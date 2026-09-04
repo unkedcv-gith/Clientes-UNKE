@@ -56,6 +56,10 @@ export interface Client {
   webUser?: string;
   webPassword?: string;
   webHostingNotes?: string;
+  ourHost?: boolean;
+  hostStartDate?: string;
+  hostAmount?: number;
+  hostAlertDismissedYear?: number;
   createdAt: string;
   createdBy: string;
   updatedAt: string;

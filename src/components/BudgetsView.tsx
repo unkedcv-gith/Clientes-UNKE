@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { BankAccountDetails, Budget, BudgetItem, BudgetStatus, ProjectType } from '../types';
-import { formatARS, formatDateAR, generateId, parseARS } from '../utils/currency';
+import { formatARS, formatDateAR, generateId, parseARS, formatAmountInput } from '../utils/currency';
 import { generateBudgetPDF } from '../utils/pdfGenerator';
 import { BudgetPrintModal } from './BudgetPrintModal';
 import {
@@ -183,7 +183,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
         }
         const next = { ...item, [field]: val };
         const qty = Number(field === 'quantity' ? val : item.quantity) || 1;
-        const price = field === 'unitPrice' ? parseARS(val as string | number) : item.unitPrice;
+        const price = field === 'unitPrice' ? Number(val) : item.unitPrice;
         next.unitPrice = price;
         next.total = qty * price;
         return next;
@@ -986,12 +986,10 @@ export const BudgetsView: React.FC<BudgetsViewProps> = () => {
 
                           <div className="col-span-3">
                             <input
-                              type="number"
-                              min={0}
-                              step={1000}
-                              value={item.unitPrice || ''}
+                              type="text"
+                              value={item.unitPrice !== undefined ? formatAmountInput(item.unitPrice) : ''}
                               onChange={e =>
-                                handleItemChange(item.id, 'unitPrice', e.target.value)
+                                handleItemChange(item.id, 'unitPrice', e.target.value.replace(/\./g, ''))
                               }
                               placeholder="$ 0"
                               required

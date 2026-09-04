@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { Project, ProjectStatus, ProjectType, PaymentStatus, Deliverable } from '../types';
-import { formatARS, formatDateAR, getDeadlineBadge, generateId, parseARS } from '../utils/currency';
+import { formatARS, formatDateAR, getDeadlineBadge, generateId, parseARS, formatAmountInput } from '../utils/currency';
 import {
   FolderKanban,
   Plus,
@@ -97,7 +97,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [formPaymentStatus, setFormPaymentStatus] = useState<PaymentStatus>('pendiente');
   const [formTotalAmount, setFormTotalAmount] = useState<string>('0');
   const [formPaidAmount, setFormPaidAmount] = useState<string>('0');
-  const [formMonthlyBillingDay, setFormMonthlyBillingDay] = useState<number>(5);
+  const [formMonthlyBillingDay, setFormMonthlyBillingDay] = useState<number>(15);
   const [formStartDate, setFormStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [formDeliveryDate, setFormDeliveryDate] = useState('');
   const [formTags, setFormTags] = useState<string>('');
@@ -139,7 +139,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     setFormPaymentStatus('pendiente');
     setFormTotalAmount('');
     setFormPaidAmount('0');
-    setFormMonthlyBillingDay(5);
+    setFormMonthlyBillingDay(15);
     setFormStartDate(new Date().toISOString().split('T')[0]);
 
     const defaultDelivery = new Date();
@@ -164,9 +164,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     setFormType(project.type);
     setFormStatus(project.status);
     setFormPaymentStatus(project.paymentStatus);
-    setFormTotalAmount(String(project.totalAmount));
-    setFormPaidAmount(String(project.paidAmount));
-    setFormMonthlyBillingDay(project.monthlyBillingDay || 5);
+    setFormTotalAmount(formatAmountInput(project.totalAmount));
+    setFormPaidAmount(formatAmountInput(project.paidAmount));
+    setFormMonthlyBillingDay(project.monthlyBillingDay || 15);
     setFormStartDate(project.startDate);
     setFormDeliveryDate(project.deliveryDate || '');
     setFormTags(project.tags ? project.tags.join(', ') : '');
@@ -1086,7 +1086,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                     type="text"
                     required
                     value={formTotalAmount}
-                    onChange={e => setFormTotalAmount(e.target.value)}
+                    onChange={e => setFormTotalAmount(formatAmountInput(e.target.value))}
                     placeholder="Ej: 450.000"
                     className="w-full bg-[#141414] border border-[#777777]/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#34877c]"
                   />
@@ -1099,7 +1099,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   <input
                     type="text"
                     value={formPaidAmount}
-                    onChange={e => setFormPaidAmount(e.target.value)}
+                    onChange={e => setFormPaidAmount(formatAmountInput(e.target.value))}
                     placeholder="Ej: 200.000"
                     className="w-full bg-[#141414] border border-[#777777]/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#34877c]"
                   />
@@ -1267,7 +1267,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   type="text"
                   required
                   value={paymentAmountInput}
-                  onChange={e => setPaymentAmountInput(e.target.value)}
+                  onChange={e => setPaymentAmountInput(formatAmountInput(e.target.value))}
                   placeholder="Ej: 150.000"
                   className="w-full bg-[#141414] border border-[#777777]/30 rounded-xl px-4 py-2.5 text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />

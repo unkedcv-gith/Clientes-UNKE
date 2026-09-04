@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { Client } from '../types';
-import { formatARS, formatDateAR } from '../utils/currency';
+import { formatARS, formatDateAR, parseARS, formatAmountInput } from '../utils/currency';
 import {
   Users,
   Plus,
@@ -67,6 +67,9 @@ export const ClientsView: React.FC = () => {
   const [formWebPassword, setFormWebPassword] = useState('');
   const [formWebHostingNotes, setFormWebHostingNotes] = useState('');
   const [showFormPassword, setShowFormPassword] = useState(false);
+  const [formOurHost, setFormOurHost] = useState(false);
+  const [formHostStartDate, setFormHostStartDate] = useState('');
+  const [formHostAmount, setFormHostAmount] = useState('');
 
   // Detail Modal UI states
   const [showDetailPassword, setShowDetailPassword] = useState(false);
@@ -96,6 +99,9 @@ export const ClientsView: React.FC = () => {
     setFormWebPassword('');
     setFormWebHostingNotes('');
     setShowFormPassword(false);
+    setFormOurHost(false);
+    setFormHostStartDate('');
+    setFormHostAmount('');
     setIsModalOpen(true);
   };
 
@@ -116,6 +122,9 @@ export const ClientsView: React.FC = () => {
     setFormWebPassword(client.webPassword || '');
     setFormWebHostingNotes(client.webHostingNotes || '');
     setShowFormPassword(false);
+    setFormOurHost(!!client.ourHost);
+    setFormHostStartDate(client.hostStartDate || '');
+    setFormHostAmount(client.hostAmount ? formatAmountInput(client.hostAmount) : '');
     setIsModalOpen(true);
   };
 
@@ -142,6 +151,9 @@ export const ClientsView: React.FC = () => {
       webUser: formHasWeb ? formWebUser.trim() : '',
       webPassword: formHasWeb ? formWebPassword.trim() : '',
       webHostingNotes: formHasWeb ? formWebHostingNotes.trim() : '',
+      ourHost: formHasWeb ? formOurHost : false,
+      hostStartDate: formHasWeb && formOurHost ? formHostStartDate : undefined,
+      hostAmount: formHasWeb && formOurHost ? parseARS(formHostAmount) : undefined,
     };
 
     if (editingClient) {
@@ -570,6 +582,38 @@ export const ClientsView: React.FC = () => {
                       </p>
                     </div>
                   )}
+
+                  {/* Nuestro Host */}
+                  {selectedClientDetail.ourHost && (
+                    <div className="col-span-full bg-[#34877c]/10 p-2.5 rounded-lg border border-[#34877c]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] text-[#34877c] font-bold block flex items-center gap-1 mb-0.5 uppercase tracking-wider">
+                          <Server className="w-3 h-3" />
+                          <span>Nuestro Hosting</span>
+                        </span>
+                        <div className="flex items-center gap-3 text-xs text-slate-300">
+                          {selectedClientDetail.hostStartDate && (
+                            <span>Alta: <span className="font-bold text-white">{formatDateAR(selectedClientDetail.hostStartDate)}</span></span>
+                          )}
+                          {selectedClientDetail.hostAmount && (
+                            <span>Monto: <span className="font-bold text-white">{formatARS(selectedClientDetail.hostAmount)}</span></span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => {
+                          const currentYear = new Date().getFullYear();
+                          updateClient(selectedClientDetail.id, { hostAlertDismissedYear: currentYear });
+                          setSelectedClientDetail({ ...selectedClientDetail, hostAlertDismissedYear: currentYear } as Client);
+                        }}
+                        className="px-3 py-1.5 bg-[#34877c]/20 hover:bg-[#34877c]/30 text-[#34877c] rounded-lg text-xs font-bold transition-colors border border-[#34877c]/40 shrink-0"
+                        title="Desactivar alerta de renovación por este año"
+                      >
+                        Desactivar Alerta
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -894,6 +938,50 @@ export const ClientsView: React.FC = () => {
                               placeholder="Ej: DonWeb / Tiendanube / Cloudflare / DNS / Accesos FTP..."
                               className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c] resize-none"
                             />
+                          </div>
+
+                          <div className="col-span-full pt-2">
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={formOurHost}
+                                onChange={e => setFormOurHost(e.target.checked)}
+                                className="w-4 h-4 rounded text-[#34877c] accent-[#34877c] bg-[#202020] border-[#777777]/40 focus:ring-0 cursor-pointer"
+                              />
+                              <div className="flex-1">
+                                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                  <span>Nuestro host</span>
+                                </span>
+                              </div>
+                            </label>
+
+                            {formOurHost && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3 animate-fadeIn">
+                                <div>
+                                  <label className="block text-[11px] text-slate-300 mb-1">
+                                    Fecha de Alta
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={formHostStartDate}
+                                    onChange={e => setFormHostStartDate(e.target.value)}
+                                    className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] text-slate-300 mb-1">
+                                    Monto Cobrado (ARS)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={formHostAmount}
+                                    onChange={e => setFormHostAmount(formatAmountInput(e.target.value))}
+                                    placeholder="Ej: 50.000"
+                                    className="w-full text-xs px-2.5 py-1.5 bg-[#202020] border border-[#777777]/30 rounded-lg text-white outline-none focus:border-[#34877c]"
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

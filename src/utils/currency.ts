@@ -49,6 +49,18 @@ export function parseARS(value: string | number): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+// Formats a string to include thousands separators dynamically (e.g. for input fields)
+export function formatAmountInput(value: string | number): string {
+  const strValue = value.toString();
+  // Strip all non-digit characters
+  const cleaned = strValue.replace(/\D/g, '');
+  if (!cleaned) return '';
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return '';
+  // Format with dots as thousands separators
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 // Formats YYYY-MM-DD to DD/MM/YYYY
 export function formatDateAR(dateString: string | null | undefined): string {
   if (!dateString) return '-';
